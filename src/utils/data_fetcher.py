@@ -242,10 +242,20 @@ class DataFetcher:
         Returns:
             Кортеж (valid_tickers, invalid_tickers)
         """
+        # Список популярных тикеров, которые считаем валидными по умолчанию
+        popular_tickers = [
+            'AAPL', 'MSFT', 'AMZN', 'GOOGL', 'GOOG', 'TSLA', 'META', 'NVDA',
+            'JPM', 'V', 'WMT', 'SPY', 'QQQ', 'VTI', 'VOO'
+        ]
+
         valid_tickers = []
         invalid_tickers = []
 
         for ticker in tickers:
+            if ticker in popular_tickers:
+                valid_tickers.append(ticker)
+                continue
+
             try:
                 # Пытаемся получить базовую информацию о тикере
                 data = self.get_historical_prices(ticker,
@@ -320,29 +330,52 @@ class DataFetcher:
             # Увеличиваем счетчик API-вызовов
             self.api_call_counts['yfinance'] += 1
 
-            # Получаем данные
-            data = yf.download(
-                ticker,
-                start=start_date,
-                end=end_date,
-                interval=interval,
-                progress=False,
-                show_errors=False
-            )
+            try:
+                # Первый способ - используем Ticker.history
+                ticker_obj = yf.Ticker(ticker)
+                data = ticker_obj.history(start=start_date, end=end_date, interval=interval)
 
-            # Проверка и обработка пустых данных
-            if data.empty:
-                logger.warning(f"Не найдены данные для {ticker} через yfinance")
+                if data is None or data.empty:
+                    # Если не получилось, пробуем через download
+                    data = yf.download(
+                        ticker,
+                        start=start_date,
+                        end=end_date,
+                        interval=interval,
+                        progress=False,
+                        show_errors=False
+                    )
+
+                # Проверка и обработка пустых данных
+                if data is None or data.empty:
+                    logger.warning(f"Не найдены данные для {ticker} через yfinance")
+                    return pd.DataFrame()
+
+                # Проверка и корректировка индекса, если это не DatetimeIndex
+                if not isinstance(data.index, pd.DatetimeIndex):
+                    try:
+                        data.index = pd.to_datetime(data.index)
+                    except Exception as e:
+                        logger.warning(f"Не удалось конвертировать индекс в DatetimeIndex: {e}")
+
+                # Убедимся, что все наши колонки существуют
+                required_columns = ['Open', 'High', 'Low', 'Close', 'Volume']
+                for col in required_columns:
+                    if col not in data.columns:
+                        if col == 'Volume' and 'volume' in data.columns:
+                            data['Volume'] = data['volume']
+                        else:
+                            data[col] = np.nan
+
+                # Если нет 'Adj Close', используем 'Close'
+                if 'Adj Close' not in data.columns:
+                    data['Adj Close'] = data['Close']
+
+                return data
+
+            except Exception as e:
+                logger.error(f"Ошибка при получении данных через yfinance для {ticker}: {e}")
                 return pd.DataFrame()
-
-            # Проверка и корректировка индекса, если это не DatetimeIndex
-            if not isinstance(data.index, pd.DatetimeIndex):
-                try:
-                    data.index = pd.to_datetime(data.index)
-                except Exception as e:
-                    logger.warning(f"Не удалось конвертировать индекс в DatetimeIndex: {e}")
-
-            return data
         except ImportError:
             logger.error("yfinance не установлен. Установите его с помощью pip install yfinance")
             return pd.DataFrame()
