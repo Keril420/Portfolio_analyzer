@@ -6,10 +6,10 @@ import numpy as np
 import sys
 import os
 
-# Добавляем корневую директорию проекта в путь для импорта
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+# Добавляем путь к директории src для импорта
+sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'src'))
 
-from src import PortfolioOptimizer
+from utils.optimization import PortfolioOptimizer
 
 
 class TestPortfolioOptimizer(unittest.TestCase):

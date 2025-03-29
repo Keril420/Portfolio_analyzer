@@ -7,10 +7,10 @@ import sys
 import os
 import datetime
 
-# Добавляем корневую директорию проекта в путь для импорта
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+# Добавляем путь к директории src для импорта
+sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'src'))
 
-from src import PortfolioAnalytics
+from utils.calculations import PortfolioAnalytics
 
 
 class TestPortfolioAnalytics(unittest.TestCase):

@@ -4,12 +4,11 @@ import pandas as pd
 from datetime import datetime, timedelta
 import matplotlib.pyplot as plt
 
-# Добавляем текущую директорию в путь для импорта
-sys.path.append('')
+# Добавляем путь к директории src для импорта
+sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'src'))
 
-# Импортируем наш модуль
-from data_fetcher import DataFetcher, PortfolioDataManager
-
+# Импортируем модуль из src/utils
+from utils.data_fetcher import DataFetcher, PortfolioDataManager
 
 def test_historical_data():
     """Тестирование получения исторических данных"""

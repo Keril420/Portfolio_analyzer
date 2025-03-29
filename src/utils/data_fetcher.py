@@ -65,7 +65,6 @@ class DataFetcher:
     ) -> pd.DataFrame:
         """
         Получение исторических цен для указанного тикера
-
         Args:
             ticker: Тикер акции/ETF
             start_date: Начальная дата в формате 'YYYY-MM-DD'
@@ -73,10 +72,19 @@ class DataFetcher:
             provider: Провайдер данных ('yfinance', 'alpha_vantage')
             interval: Интервал данных ('1d', '1wk', '1mo')
             force_refresh: Принудительное обновление данных
-
         Returns:
             DataFrame с историческими ценами
         """
+        # Проверяем, содержит ли тикер точку, и создаем скорректированную версию для API
+        original_ticker = ticker
+        corrected_ticker = ticker.replace('.', '-') if '.' in ticker else ticker
+
+        if corrected_ticker != original_ticker:
+            logger.info(f"Используем скорректированный тикер {corrected_ticker} для запроса {original_ticker}")
+
+        # Используем оригинальный тикер для кеша
+        cache_key = original_ticker
+
         # Установка значений по умолчанию для дат
         if end_date is None:
             end_date = datetime.now().strftime('%Y-%m-%d')
@@ -86,7 +94,7 @@ class DataFetcher:
             start_date = (datetime.now() - timedelta(days=5 * 365)).strftime('%Y-%m-%d')
 
         # Проверка срока годности кеша
-        cache_file = self.cache_dir / f"{ticker}_{start_date}_{end_date}_{interval}_{provider}.pkl"
+        cache_file = self.cache_dir / f"{cache_key}_{start_date}_{end_date}_{interval}_{provider}.pkl"
 
         if not force_refresh and cache_file.exists():
             # Проверка возраста кеша
@@ -94,26 +102,26 @@ class DataFetcher:
             if file_age.days < self.cache_expiry_days:
                 try:
                     with open(cache_file, 'rb') as f:
-                        logger.info(f"Загрузка данных {ticker} из кеша")
+                        logger.info(f"Загрузка данных {original_ticker} из кеша")
                         return pickle.load(f)
                 except Exception as e:
-                    logger.warning(f"Не удалось загрузить кеш для {ticker}: {e}")
+                    logger.warning(f"Не удалось загрузить кеш для {original_ticker}: {e}")
 
         # Если кеш отсутствует или устарел, получаем новые данные
         if provider in self.providers:
             try:
-                # Получение данных от провайдера
-                data = self.providers[provider](ticker, start_date, end_date, interval)
+                # Получение данных от провайдера, используя скорректированный тикер
+                data = self.providers[provider](corrected_ticker, start_date, end_date, interval)
 
                 # Сохраняем в кеш, если получены данные
                 if data is not None and not data.empty:
                     with open(cache_file, 'wb') as f:
                         pickle.dump(data, f)
-                    logger.info(f"Сохранены данные {ticker} в кеш")
+                    logger.info(f"Сохранены данные {original_ticker} в кеш")
 
                 return data
             except Exception as e:
-                logger.error(f"Ошибка получения данных для {ticker} от {provider}: {e}")
+                logger.error(f"Ошибка получения данных для {original_ticker} от {provider}: {e}")
                 # Пробуем альтернативный провайдер, если текущий не работает
                 fallback_provider = next((p for p in self.providers.keys() if p != provider), None)
                 if fallback_provider:
@@ -245,7 +253,7 @@ class DataFetcher:
         # Список популярных тикеров, которые считаем валидными по умолчанию
         popular_tickers = [
             'AAPL', 'MSFT', 'AMZN', 'GOOGL', 'GOOG', 'TSLA', 'META', 'NVDA',
-            'JPM', 'V', 'WMT', 'SPY', 'QQQ', 'VTI', 'VOO'
+            'JPM', 'V', 'WMT', 'SPY', 'QQQ', 'VTI', 'VOO', 'BRK.B'
         ]
 
         valid_tickers = []
@@ -277,20 +285,65 @@ class DataFetcher:
         Получение макроэкономических индикаторов
 
         Args:
-            indicators: Список индикаторов (например, ['INFLATION', 'GDP', 'UNEMPLOYMENT'])
+            indicators: Список индикаторов
             start_date: Начальная дата
             end_date: Конечная дата
 
         Returns:
             Словарь {indicator: DataFrame}
         """
-        # Эта функция является заглушкой - в реальной реализации нужно
-        # использовать специализированные API для макроэкономических данных
-        # (например, FRED API, World Bank API и т.д.)
+        results = {}
 
-        # В прототипе просто возвращаем пустой словарь
-        logger.warning("Функция get_macro_indicators не реализована полностью")
-        return {indicator: pd.DataFrame() for indicator in indicators}
+        # Отображаем коды индикаторов на их FRED-коды
+        indicator_mapping = {
+            'INFLATION': 'CPIAUCSL',  # Consumer Price Index
+            'GDP': 'GDP',  # Gross Domestic Product
+            'UNEMPLOYMENT': 'UNRATE',  # Unemployment Rate
+            'INTEREST_RATE': 'FEDFUNDS',  # Federal Funds Rate
+            'RETAIL_SALES': 'RSXFS',  # Retail Sales
+            'INDUSTRIAL_PRODUCTION': 'INDPRO',  # Industrial Production Index
+            'HOUSE_PRICE_INDEX': 'CSUSHPISA',  # Case-Shiller Home Price Index
+            'CONSUMER_SENTIMENT': 'UMCSENT'  # University of Michigan Consumer Sentiment
+        }
+
+        try:
+            import pandas_datareader.data as web
+
+            # Настройка дат
+            if end_date is None:
+                end_date = datetime.now().strftime('%Y-%m-%d')
+
+            if start_date is None:
+                start_date = (datetime.now() - timedelta(days=5 * 365)).strftime('%Y-%m-%d')
+
+            # Конвертируем строки дат в datetime
+            start_date_dt = pd.to_datetime(start_date)
+            end_date_dt = pd.to_datetime(end_date)
+
+            # Получаем данные для каждого индикатора
+            for indicator in indicators:
+                try:
+                    # Преобразуем индикатор в код FRED
+                    fred_code = indicator_mapping.get(indicator, indicator)
+
+                    # Загружаем данные из FRED
+                    data = web.DataReader(fred_code, 'fred', start_date_dt, end_date_dt)
+
+                    # Сохраняем в результат
+                    results[indicator] = data
+
+                    logger.info(f"Загружен макроэкономический индикатор {indicator} ({fred_code})")
+                except Exception as e:
+                    logger.error(f"Ошибка при загрузке индикатора {indicator}: {e}")
+                    results[indicator] = pd.DataFrame()
+
+            return results
+        except ImportError:
+            logger.error("pandas_datareader не установлен. Установите его с помощью pip install pandas-datareader")
+            return {indicator: pd.DataFrame() for indicator in indicators}
+        except Exception as e:
+            logger.error(f"Ошибка при получении макроэкономических индикаторов: {e}")
+            return {indicator: pd.DataFrame() for indicator in indicators}
 
     def get_etf_constituents(self, etf_ticker: str) -> List[Dict]:
         """
@@ -302,12 +355,90 @@ class DataFetcher:
         Returns:
             Список компонентов ETF с весами
         """
-        # Эта функция также является заглушкой
-        # В реальной реализации можно использовать специализированные API
-        # или парсинг веб-страниц с составом ETF
+        # Кешируем результаты для популярных ETF
+        etf_cache_file = self.cache_dir / f"{etf_ticker}_constituents.json"
 
-        logger.warning("Функция get_etf_constituents не реализована полностью")
-        return []
+        # Проверяем кеш
+        if etf_cache_file.exists():
+            file_age = datetime.now() - datetime.fromtimestamp(etf_cache_file.stat().st_mtime)
+            if file_age.days < 30:  # Обновляем раз в месяц
+                try:
+                    with open(etf_cache_file, 'r') as f:
+                        return json.load(f)
+                except Exception as e:
+                    logger.warning(f"Не удалось загрузить кеш для ETF {etf_ticker}: {e}")
+
+        constituents = []
+
+        try:
+            import yfinance as yf
+            import requests
+            from bs4 import BeautifulSoup
+
+            # Пробуем получить состав через Yahoo Finance
+            etf_info = yf.Ticker(etf_ticker)
+            holdings = etf_info.holdings
+
+            # Если удалось получить данные через yfinance
+            if holdings is not None and hasattr(holdings, 'to_dict'):
+                top_holdings = holdings.get('holdings', [])
+
+                for i, (symbol, data) in enumerate(top_holdings.items()):
+                    if i >= 100:  # Ограничиваем количество компонентов
+                        break
+
+                    weight = data.get('percent_of_fund', 0)
+                    constituent = {
+                        'ticker': symbol,
+                        'name': data.get('name', ''),
+                        'weight': weight / 100 if weight else 0,
+                        'sector': data.get('sector', '')
+                    }
+                    constituents.append(constituent)
+
+            # Если через yfinance не удалось, попробуем через веб-скрапинг
+            if not constituents:
+                # Для популярных ETFs можно использовать данные с ETF.com или других источников
+                if etf_ticker.upper() in ['SPY', 'VOO', 'QQQ', 'VTI', 'IWM']:
+                    url = f"https://www.etf.com/{etf_ticker}"
+                    headers = {'User-Agent': 'Mozilla/5.0'}
+
+                    response = requests.get(url, headers=headers)
+                    if response.status_code == 200:
+                        soup = BeautifulSoup(response.text, 'html.parser')
+
+                        # Пример скрапинга - реальная реализация будет зависеть от структуры страницы
+                        tables = soup.find_all('table')
+                        for table in tables:
+                            if 'holdings' in table.get('class', []):
+                                rows = table.find_all('tr')
+                                for row in rows[1:]:  # Пропускаем заголовок
+                                    cells = row.find_all('td')
+                                    if len(cells) >= 3:
+                                        ticker = cells[0].text.strip()
+                                        name = cells[1].text.strip()
+                                        weight_text = cells[2].text.strip().replace('%', '')
+
+                                        try:
+                                            weight = float(weight_text) / 100
+                                        except ValueError:
+                                            weight = 0
+
+                                        constituents.append({
+                                            'ticker': ticker,
+                                            'name': name,
+                                            'weight': weight
+                                        })
+
+            # Сохраняем результаты в кеш
+            if constituents:
+                with open(etf_cache_file, 'w') as f:
+                    json.dump(constituents, f)
+
+            return constituents
+        except Exception as e:
+            logger.error(f"Ошибка при получении состава ETF {etf_ticker}: {e}")
+            return []
 
     def get_sector_performance(self) -> pd.DataFrame:
         """
@@ -316,9 +447,97 @@ class DataFetcher:
         Returns:
             DataFrame с доходностью секторов
         """
-        # Заглушка для прототипа
-        logger.warning("Функция get_sector_performance не реализована полностью")
-        return pd.DataFrame()
+        # Кеширование результатов
+        cache_file = self.cache_dir / "sector_performance.pkl"
+
+        # Проверяем кеш
+        if cache_file.exists():
+            file_age = datetime.now() - datetime.fromtimestamp(cache_file.stat().st_mtime)
+            if file_age.days < 1:  # Обновляем раз в день
+                try:
+                    with open(cache_file, 'rb') as f:
+                        return pickle.load(f)
+                except Exception as e:
+                    logger.warning(f"Не удалось загрузить кеш производительности секторов: {e}")
+
+        try:
+            # Список ETF секторов
+            sector_etfs = {
+                'Technology': 'XLK',
+                'Healthcare': 'XLV',
+                'Financials': 'XLF',
+                'Consumer Discretionary': 'XLY',
+                'Consumer Staples': 'XLP',
+                'Energy': 'XLE',
+                'Utilities': 'XLU',
+                'Real Estate': 'XLRE',
+                'Materials': 'XLB',
+                'Industrials': 'XLI',
+                'Communication Services': 'XLC'
+            }
+
+            # Определяем интервалы для расчета доходности
+            periods = {
+                '1D': timedelta(days=1),
+                '1W': timedelta(weeks=1),
+                '1M': timedelta(days=30),
+                '3M': timedelta(days=90),
+                'YTD': timedelta(days=(datetime.now() - datetime(datetime.now().year, 1, 1)).days),
+                '1Y': timedelta(days=365)
+            }
+
+            # Получаем исторические данные для всех ETF секторов
+            end_date = datetime.now().strftime('%Y-%m-%d')
+            start_date = (datetime.now() - timedelta(days=365 + 10)).strftime('%Y-%m-%d')
+
+            etf_data = self.get_batch_data(list(sector_etfs.values()), start_date, end_date)
+
+            # Создаем DataFrame с результатами
+            result_data = []
+
+            for sector_name, ticker in sector_etfs.items():
+                if ticker in etf_data and not etf_data[ticker].empty:
+                    price_data = etf_data[ticker]
+
+                    # Проверяем, есть ли 'Adj Close' или 'Close'
+                    price_col = 'Adj Close' if 'Adj Close' in price_data.columns else 'Close'
+
+                    # Получаем последнюю цену
+                    latest_price = price_data[price_col].iloc[-1]
+
+                    # Рассчитываем доходность для каждого периода
+                    returns = {}
+                    for period_name, period_delta in periods.items():
+                        start_idx = price_data.index[-1] - period_delta
+                        historical_data = price_data[price_data.index >= start_idx]
+
+                        if not historical_data.empty and len(historical_data) > 1:
+                            start_price = historical_data[price_col].iloc[0]
+                            returns[period_name] = (latest_price / start_price - 1) * 100
+                        else:
+                            returns[period_name] = None
+
+                    # Добавляем информацию в результат
+                    sector_info = {
+                        'Sector': sector_name,
+                        'Ticker': ticker,
+                        'Latest Price': latest_price
+                    }
+                    sector_info.update(returns)
+
+                    result_data.append(sector_info)
+
+            # Создаем DataFrame
+            result_df = pd.DataFrame(result_data)
+
+            # Сохраняем в кеш
+            with open(cache_file, 'wb') as f:
+                pickle.dump(result_df, f)
+
+            return result_df
+        except Exception as e:
+            logger.error(f"Ошибка при получении производительности секторов: {e}")
+            return pd.DataFrame()
 
     # Методы для конкретных провайдеров данных
 
@@ -327,18 +546,25 @@ class DataFetcher:
         try:
             import yfinance as yf
 
+            # Проверяем, содержит ли тикер точку, и создаем скорректированную версию для API
+            original_ticker = ticker
+            corrected_ticker = ticker.replace('.', '-') if '.' in ticker else ticker
+
+            if corrected_ticker != original_ticker:
+                logger.info(f"Используем скорректированный тикер {corrected_ticker} для запроса {original_ticker}")
+
             # Увеличиваем счетчик API-вызовов
             self.api_call_counts['yfinance'] += 1
 
             try:
-                # Первый способ - используем Ticker.history
-                ticker_obj = yf.Ticker(ticker)
+                # Первый способ - используем Ticker.history с исправленным тикером
+                ticker_obj = yf.Ticker(corrected_ticker)
                 data = ticker_obj.history(start=start_date, end=end_date, interval=interval)
 
                 if data is None or data.empty:
                     # Если не получилось, пробуем через download
                     data = yf.download(
-                        ticker,
+                        corrected_ticker,
                         start=start_date,
                         end=end_date,
                         interval=interval,
@@ -348,7 +574,8 @@ class DataFetcher:
 
                 # Проверка и обработка пустых данных
                 if data is None or data.empty:
-                    logger.warning(f"Не найдены данные для {ticker} через yfinance")
+                    logger.warning(
+                        f"Не найдены данные для {original_ticker} (запрос как {corrected_ticker}) через yfinance")
                     return pd.DataFrame()
 
                 # Проверка и корректировка индекса, если это не DatetimeIndex
@@ -374,7 +601,8 @@ class DataFetcher:
                 return data
 
             except Exception as e:
-                logger.error(f"Ошибка при получении данных через yfinance для {ticker}: {e}")
+                logger.error(
+                    f"Ошибка при получении данных через yfinance для {original_ticker} (запрос как {corrected_ticker}): {e}")
                 return pd.DataFrame()
         except ImportError:
             logger.error("yfinance не установлен. Установите его с помощью pip install yfinance")
@@ -394,6 +622,14 @@ class DataFetcher:
             logger.warning("Достигнут лимит API-вызовов Alpha Vantage")
             return pd.DataFrame()
 
+        # Проверяем, содержит ли тикер точку, и создаем скорректированную версию для API
+        original_ticker = ticker
+        corrected_ticker = ticker.replace('.', '-') if '.' in ticker else ticker
+
+        if corrected_ticker != original_ticker:
+            logger.info(
+                f"Используем скорректированный тикер {corrected_ticker} для запроса Alpha Vantage {original_ticker}")
+
         # Маппинг интервалов
         interval_map = {
             '1d': 'daily',
@@ -408,7 +644,7 @@ class DataFetcher:
             base_url = "https://www.alphavantage.co/query"
             params = {
                 "function": function,
-                "symbol": ticker,
+                "symbol": corrected_ticker,  # Используем исправленный тикер
                 "apikey": self.api_keys['alpha_vantage'],
                 "outputsize": "full"
             }
@@ -424,14 +660,15 @@ class DataFetcher:
 
             # Проверяем наличие ошибок в ответе
             if "Error Message" in data:
-                logger.error(f"Alpha Vantage API вернул ошибку: {data['Error Message']}")
+                logger.error(
+                    f"Alpha Vantage API вернул ошибку для {original_ticker} (запрос как {corrected_ticker}): {data['Error Message']}")
                 return pd.DataFrame()
 
             # Определяем ключ временного ряда в зависимости от функции
             time_series_key = next((k for k in data.keys() if k.startswith("Time Series")), None)
 
             if not time_series_key:
-                logger.error(f"Неожиданный формат ответа Alpha Vantage: {data.keys()}")
+                logger.error(f"Неожиданный формат ответа Alpha Vantage для {original_ticker}: {data.keys()}")
                 return pd.DataFrame()
 
             # Преобразуем данные в DataFrame
@@ -471,10 +708,10 @@ class DataFetcher:
 
             return df
         except requests.exceptions.RequestException as e:
-            logger.error(f"Ошибка запроса к Alpha Vantage API: {e}")
+            logger.error(f"Ошибка запроса к Alpha Vantage API для {original_ticker}: {e}")
             return pd.DataFrame()
         except Exception as e:
-            logger.error(f"Ошибка при обработке данных Alpha Vantage для {ticker}: {e}")
+            logger.error(f"Ошибка при обработке данных Alpha Vantage для {original_ticker}: {e}")
             return pd.DataFrame()
 
     def _get_yfinance_company_info(self, ticker: str) -> Dict:
@@ -482,18 +719,26 @@ class DataFetcher:
         try:
             import yfinance as yf
 
+            # Проверяем, содержит ли тикер точку, и создаем скорректированную версию для API
+            original_ticker = ticker
+            corrected_ticker = ticker.replace('.', '-') if '.' in ticker else ticker
+
+            if corrected_ticker != original_ticker:
+                logger.info(
+                    f"Используем скорректированный тикер {corrected_ticker} для запроса информации о компании {original_ticker}")
+
             # Увеличиваем счетчик API-вызовов
             self.api_call_counts['yfinance'] += 1
 
             # Получаем данные
-            ticker_obj = yf.Ticker(ticker)
+            ticker_obj = yf.Ticker(corrected_ticker)
             info = ticker_obj.info
 
             # Обработка и нормализация данных
             # Некоторые ключи могут отсутствовать, добавляем базовые проверки
             normalized_info = {
-                'symbol': ticker,
-                'name': info.get('longName', info.get('shortName', ticker)),
+                'symbol': original_ticker,  # Сохраняем оригинальный тикер
+                'name': info.get('longName', info.get('shortName', original_ticker)),
                 'sector': info.get('sector', 'N/A'),
                 'industry': info.get('industry', 'N/A'),
                 'country': info.get('country', 'N/A'),
@@ -523,7 +768,7 @@ class DataFetcher:
             logger.error("yfinance не установлен. Установите его с помощью pip install yfinance")
             return {}
         except Exception as e:
-            logger.error(f"Ошибка при получении информации о компании через yfinance для {ticker}: {e}")
+            logger.error(f"Ошибка при получении информации о компании через yfinance для {original_ticker}: {e}")
             return {}
 
     def _get_alpha_vantage_company_info(self, ticker: str) -> Dict:
@@ -537,12 +782,20 @@ class DataFetcher:
             logger.warning("Достигнут лимит API-вызовов Alpha Vantage")
             return {}
 
+        # Проверяем, содержит ли тикер точку, и создаем скорректированную версию для API
+        original_ticker = ticker
+        corrected_ticker = ticker.replace('.', '-') if '.' in ticker else ticker
+
+        if corrected_ticker != original_ticker:
+            logger.info(
+                f"Используем скорректированный тикер {corrected_ticker} для запроса Alpha Vantage о компании {original_ticker}")
+
         try:
             # Формируем URL для overview
             base_url = "https://www.alphavantage.co/query"
             params = {
                 "function": "OVERVIEW",
-                "symbol": ticker,
+                "symbol": corrected_ticker,  # Используем исправленный тикер
                 "apikey": self.api_keys['alpha_vantage']
             }
 
@@ -557,13 +810,13 @@ class DataFetcher:
 
             # Проверяем наличие данных
             if not data or ("Error Message" in data) or len(data.keys()) <= 1:
-                logger.warning(f"Alpha Vantage не вернул данные для {ticker}")
+                logger.warning(f"Alpha Vantage не вернул данные для {original_ticker} (запрос как {corrected_ticker})")
                 return {}
 
             # Преобразуем и нормализуем данные
             normalized_info = {
-                'symbol': data.get('Symbol', ticker),
-                'name': data.get('Name', ticker),
+                'symbol': original_ticker,  # Сохраняем оригинальный тикер
+                'name': data.get('Name', original_ticker),
                 'sector': data.get('Sector', 'N/A'),
                 'industry': data.get('Industry', 'N/A'),
                 'country': data.get('Country', 'N/A'),
@@ -588,10 +841,10 @@ class DataFetcher:
 
             return normalized_info
         except requests.exceptions.RequestException as e:
-            logger.error(f"Ошибка запроса к Alpha Vantage API для информации о компании: {e}")
+            logger.error(f"Ошибка запроса к Alpha Vantage API для информации о компании {original_ticker}: {e}")
             return {}
         except Exception as e:
-            logger.error(f"Ошибка при обработке информации Alpha Vantage для {ticker}: {e}")
+            logger.error(f"Ошибка при обработке информации Alpha Vantage для {original_ticker}: {e}")
             return {}
 
     def _search_alpha_vantage(self, query: str, limit: int = 10) -> List[Dict]:
@@ -626,8 +879,23 @@ class DataFetcher:
             results = []
             if 'bestMatches' in data:
                 for match in data['bestMatches'][:limit]:
+                    # Получаем символ из результата
+                    symbol = match.get('1. symbol', '')
+
+                    # Проверяем, содержит ли символ дефис, который может быть представлением точки
+                    # Заменяем дефис на точку для отображения пользователю, если это соответствует
+                    # известному формату тикеров с точками (например, BRK-B -> BRK.B)
+                    display_symbol = symbol
+                    if '-' in symbol:
+                        # Только для известных паттернов (например, BRK-B, BF-B)
+                        known_patterns = ['BRK-B', 'BF-B']
+                        if symbol in known_patterns or (len(symbol.split('-')) == 2 and len(symbol.split('-')[1]) == 1):
+                            display_symbol = symbol.replace('-', '.')
+                            logger.info(f"Преобразован тикер в результатах поиска: {symbol} -> {display_symbol}")
+
                     results.append({
-                        'symbol': match.get('1. symbol', ''),
+                        'symbol': display_symbol,  # Отображаем с точкой, если это подходящий формат
+                        'original_symbol': symbol,  # Сохраняем оригинальный символ
                         'name': match.get('2. name', ''),
                         'type': match.get('3. type', ''),
                         'region': match.get('4. region', ''),
@@ -646,13 +914,57 @@ class DataFetcher:
 
     def _search_alternative(self, query: str, limit: int = 10) -> List[Dict]:
         """
-        Альтернативный метод поиска тикеров (заглушка)
-        В реальной реализации можно использовать другие API или парсинг
-        """
-        logger.warning("Используется заглушка для поиска тикеров")
+        Альтернативный метод поиска тикеров через Yahoo Finance API
 
-        # В прототипе возвращаем пустой список
-        return []
+        Args:
+            query: Поисковый запрос
+            limit: Максимальное количество результатов
+
+        Returns:
+            Список словарей с информацией о найденных тикерах
+        """
+        try:
+            import yfinance as yf
+            import json
+            import requests
+
+            # Используем Yahoo Finance API для поиска
+            url = f"https://query2.finance.yahoo.com/v1/finance/search?q={query}&quotesCount={limit}&newsCount=0"
+            headers = {'User-Agent': 'Mozilla/5.0'}
+
+            response = requests.get(url, headers=headers)
+            if response.status_code != 200:
+                logger.error(f"Ошибка запроса к Yahoo Finance API: {response.status_code}")
+                return []
+
+            data = response.json()
+
+            results = []
+            if 'quotes' in data and data['quotes']:
+                for quote in data['quotes'][:limit]:
+                    # Преобразуем формат в тот же, что и Alpha Vantage
+                    ticker = quote.get('symbol', '')
+
+                    # Проверяем, содержит ли тикер дефис, который может быть представлением точки
+                    display_ticker = ticker
+                    if '-' in ticker:
+                        if len(ticker.split('-')) == 2 and len(ticker.split('-')[1]) == 1:
+                            display_ticker = ticker.replace('-', '.')
+
+                    results.append({
+                        'symbol': display_ticker,
+                        'original_symbol': ticker,
+                        'name': quote.get('shortname', quote.get('longname', '')),
+                        'type': quote.get('quoteType', ''),
+                        'region': quote.get('region', 'US'),
+                        'currency': quote.get('currency', 'USD'),
+                        'exchange': quote.get('exchange', '')
+                    })
+
+            return results
+        except Exception as e:
+            logger.error(f"Ошибка при поиске тикеров через Yahoo Finance: {e}")
+            return []
 
     # Вспомогательные методы
 
@@ -742,8 +1054,25 @@ class DataFetcher:
         """
         results = {}
 
+        # Обработка специальных тикеров с точками
+        ticker_mapping = {}
+        corrected_tickers = []
+
+        for ticker in tickers:
+            if '.' in ticker:
+                # Заменяем точку на дефис для запроса данных
+                corrected_ticker = ticker.replace('.', '-')
+                ticker_mapping[corrected_ticker] = ticker
+                corrected_tickers.append(corrected_ticker)
+            else:
+                corrected_tickers.append(ticker)
+                ticker_mapping[ticker] = ticker
+
+        if ticker_mapping:
+            logger.info(f"Выполнена замена тикеров для запроса данных: {ticker_mapping}")
+
         # Реализуем многопоточную загрузку для yfinance
-        if provider == 'yfinance' and len(tickers) > 1:
+        if provider == 'yfinance' and len(corrected_tickers) > 1:
             try:
                 import yfinance as yf
 
@@ -754,22 +1083,27 @@ class DataFetcher:
                 if start_date is None:
                     start_date = (datetime.now() - timedelta(days=5 * 365)).strftime('%Y-%m-%d')
 
-                # Проверяем кеш для каждого тикера
+                # Проверяем кеш для каждого тикера (используем оригинальные тикеры для имен файлов)
                 tickers_to_download = []
-                for ticker in tickers:
-                    cache_file = self.cache_dir / f"{ticker}_{start_date}_{end_date}_1d_{provider}.pkl"
+                download_mapping = {}  # Маппинг для загрузки: {corrected_ticker: original_ticker}
+
+                for original_ticker in tickers:
+                    cache_file = self.cache_dir / f"{original_ticker}_{start_date}_{end_date}_1d_{provider}.pkl"
                     if cache_file.exists():
                         file_age = datetime.now() - datetime.fromtimestamp(cache_file.stat().st_mtime)
                         if file_age.days < self.cache_expiry_days:
                             try:
                                 with open(cache_file, 'rb') as f:
-                                    results[ticker] = pickle.load(f)
-                                    logger.info(f"Загрузка данных {ticker} из кеша")
+                                    results[original_ticker] = pickle.load(f)
+                                    logger.info(f"Загрузка данных {original_ticker} из кеша")
                                     continue
                             except Exception as e:
-                                logger.warning(f"Не удалось загрузить кеш для {ticker}: {e}")
+                                logger.warning(f"Не удалось загрузить кеш для {original_ticker}: {e}")
 
-                    tickers_to_download.append(ticker)
+                    # Находим скорректированный тикер для загрузки
+                    corrected_ticker = original_ticker.replace('.', '-') if '.' in original_ticker else original_ticker
+                    tickers_to_download.append(corrected_ticker)
+                    download_mapping[corrected_ticker] = original_ticker
 
                 # Загружаем недостающие данные
                 if tickers_to_download:
@@ -787,23 +1121,24 @@ class DataFetcher:
                     )
 
                     # Обрабатываем и сохраняем данные для каждого тикера
-                    for ticker in tickers_to_download:
+                    for corrected_ticker, original_ticker in download_mapping.items():
                         if len(tickers_to_download) == 1:
                             # Если только один тикер, данные не группируются
                             ticker_data = data
                         else:
                             # Извлекаем данные для конкретного тикера
-                            ticker_data = data[ticker].copy() if ticker in data else pd.DataFrame()
+                            ticker_data = data[corrected_ticker].copy() if corrected_ticker in data else pd.DataFrame()
 
                         # Проверяем и сохраняем данные
                         if not ticker_data.empty:
-                            # Сохраняем в кеш
-                            cache_file = self.cache_dir / f"{ticker}_{start_date}_{end_date}_1d_{provider}.pkl"
+                            # Сохраняем в кеш под оригинальным именем
+                            cache_file = self.cache_dir / f"{original_ticker}_{start_date}_{end_date}_1d_{provider}.pkl"
                             with open(cache_file, 'wb') as f:
                                 pickle.dump(ticker_data, f)
 
-                            results[ticker] = ticker_data
-                            logger.info(f"Загружены и сохранены данные для {ticker}")
+                            results[original_ticker] = ticker_data
+                            logger.info(
+                                f"Загружены и сохранены данные для {original_ticker} (запрос как {corrected_ticker})")
 
                 return results
             except ImportError:
@@ -813,13 +1148,19 @@ class DataFetcher:
                 # Продолжаем с последовательной загрузкой как резервным вариантом
 
         # Последовательная загрузка для каждого тикера
-        for ticker in tickers:
+        for original_ticker in tickers:
             try:
-                data = self.get_historical_prices(ticker, start_date, end_date, provider)
+                # Для одиночной загрузки используем модифицированный метод get_historical_prices
+                corrected_ticker = original_ticker.replace('.', '-') if '.' in original_ticker else original_ticker
+
+                # Временно заменяем тикер для запроса
+                data = self.get_historical_prices(corrected_ticker, start_date, end_date, provider)
+
                 if not data.empty:
-                    results[ticker] = data
+                    # Сохраняем под оригинальным тикером
+                    results[original_ticker] = data
             except Exception as e:
-                logger.error(f"Ошибка при загрузке данных для {ticker}: {e}")
+                logger.error(f"Ошибка при загрузке данных для {original_ticker}: {e}")
 
         return results
 
@@ -954,7 +1295,27 @@ class PortfolioDataManager:
         if not filename.endswith('.json'):
             filename += '.json'
 
+        # Проверяем, существует ли файл напрямую
         file_path = self.storage_dir / filename
+
+        # Если файл не найден по прямому имени, попробуем поискать по альтернативным именам
+        if not file_path.exists():
+            # Ищем файлы с похожими именами
+            potential_files = list(self.storage_dir.glob('*.json'))
+            for potential_file in potential_files:
+                # Нормализуем имена для сравнения
+                normalized_name = filename.replace('\\', '_').replace('/', '_').replace(':', '_')
+                potential_normalized = potential_file.name
+
+                # Проверяем, насколько похожи имена
+                if normalized_name.lower().replace(' ', '') == potential_normalized.lower().replace(' ', ''):
+                    file_path = potential_file
+                    break
+
+                # Также проверяем по началу имени (первые 10+ символов)
+                if len(normalized_name) > 10 and normalized_name[:10].lower() == potential_normalized[:10].lower():
+                    file_path = potential_file
+                    break
 
         if not file_path.exists():
             raise FileNotFoundError(f"Файл портфеля не найден: {file_path}")
@@ -1305,7 +1666,17 @@ class PortfolioDataManager:
     def _sanitize_filename(self, filename: str) -> str:
         """Очистка имени файла от недопустимых символов"""
         # Заменяем недопустимые символы на '_'
-        return re.sub(r'[\\/*?:"<>|]', '_', filename)
+        # Расширенный список символов, которые нужно заменить
+        filename = re.sub(r'[\\/*?:"<>|%\\\\\s]', '_', filename)
+
+        # Также заменяем слеши и двоеточия, которые могут вызывать проблемы
+        filename = filename.replace('\\', '_').replace('/', '_').replace(':', '_')
+
+        # Ограничиваем длину имени файла
+        if len(filename) > 200:
+            filename = filename[:197] + '...'
+
+        return filename
 
     def _normalize_weights(self, portfolio_data: Dict) -> None:
         """Нормализация весов активов в портфеле, чтобы сумма была равна 1.0"""

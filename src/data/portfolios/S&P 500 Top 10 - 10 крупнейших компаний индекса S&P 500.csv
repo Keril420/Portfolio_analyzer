@@ -1,0 +1,10 @@
+ticker,weight,name,sector,industry,currency,asset_class,current_price,price_date
+AAPL,0.2127659574468085,Apple Inc.,Technology,Consumer Electronics,USD,Stock,217.89999389648438,2025-03-28
+MSFT,0.19148936170212763,Microsoft Corporation,Technology,Software - Infrastructure,USD,Stock,378.79998779296875,2025-03-28
+AMZN,0.1276595744680851,Amazon.com Inc.,Consumer Discretionary,Internet Retail,USD,Stock,192.72000122070312,2025-03-28
+NVDA,0.10638297872340426,NVIDIA Corporation,Technology,Semiconductors,USD,Stock,109.66999816894531,2025-03-28
+GOOGL,0.09574468085106382,Alphabet Inc. Class A,Communication Services,Internet Content & Information,USD,Stock,154.3300018310547,2025-03-28
+META,0.0851063829787234,Meta Platforms Inc.,Communication Services,Internet Content & Information,USD,Stock,576.739990234375,2025-03-28
+GOOG,0.07446808510638298,Alphabet Inc. Class C,Communication Services,Internet Content & Information,USD,Stock,156.05999755859375,2025-03-28
+TSLA,0.05319148936170213,"Tesla, Inc.",Consumer Discretionary,Auto Manufacturers,USD,Stock,263.54998779296875,2025-03-28
+UNH,0.05319148936170213,UnitedHealth Group Incorporated,Healthcare,Healthcare Plans,USD,Stock,516.0399780273438,2025-03-28

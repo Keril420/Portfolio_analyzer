@@ -1,0 +1,116 @@
+{
+  "name": "S&P 500 Top 10 - 10 крупнейших компаний индекса S&P 500",
+  "description": "10 крупнейших компаний индекса S&P 500",
+  "created": "2025-03-29 14:32:19",
+  "last_updated": "2025-03-29 14:32:22",
+  "assets": [
+    {
+      "ticker": "AAPL",
+      "weight": 0.2,
+      "name": "Apple Inc.",
+      "sector": "Technology",
+      "industry": "Consumer Electronics",
+      "currency": "USD",
+      "asset_class": "Stock",
+      "current_price": 217.89999389648438,
+      "price_date": "2025-03-28"
+    },
+    {
+      "ticker": "MSFT",
+      "weight": 0.18,
+      "name": "Microsoft Corporation",
+      "sector": "Technology",
+      "industry": "Software - Infrastructure",
+      "currency": "USD",
+      "asset_class": "Stock",
+      "current_price": 378.79998779296875,
+      "price_date": "2025-03-28"
+    },
+    {
+      "ticker": "AMZN",
+      "weight": 0.12,
+      "name": "Amazon.com Inc.",
+      "sector": "Consumer Discretionary",
+      "industry": "Internet Retail",
+      "currency": "USD",
+      "asset_class": "Stock",
+      "current_price": 192.72000122070312,
+      "price_date": "2025-03-28"
+    },
+    {
+      "ticker": "NVDA",
+      "weight": 0.1,
+      "name": "NVIDIA Corporation",
+      "sector": "Technology",
+      "industry": "Semiconductors",
+      "currency": "USD",
+      "asset_class": "Stock",
+      "current_price": 109.66999816894531,
+      "price_date": "2025-03-28"
+    },
+    {
+      "ticker": "GOOGL",
+      "weight": 0.09,
+      "name": "Alphabet Inc. Class A",
+      "sector": "Communication Services",
+      "industry": "Internet Content & Information",
+      "currency": "USD",
+      "asset_class": "Stock",
+      "current_price": 154.3300018310547,
+      "price_date": "2025-03-28"
+    },
+    {
+      "ticker": "META",
+      "weight": 0.08,
+      "name": "Meta Platforms Inc.",
+      "sector": "Communication Services",
+      "industry": "Internet Content & Information",
+      "currency": "USD",
+      "asset_class": "Stock",
+      "current_price": 576.739990234375,
+      "price_date": "2025-03-28"
+    },
+    {
+      "ticker": "GOOG",
+      "weight": 0.07,
+      "name": "Alphabet Inc. Class C",
+      "sector": "Communication Services",
+      "industry": "Internet Content & Information",
+      "currency": "USD",
+      "asset_class": "Stock",
+      "current_price": 156.05999755859375,
+      "price_date": "2025-03-28"
+    },
+    {
+      "ticker": "BRK.B",
+      "weight": 0.06,
+      "name": "Berkshire Hathaway Inc. Class B",
+      "sector": "Financials",
+      "industry": "N/A",
+      "currency": "USD",
+      "asset_class": "Stock"
+    },
+    {
+      "ticker": "TSLA",
+      "weight": 0.05,
+      "name": "Tesla, Inc.",
+      "sector": "Consumer Discretionary",
+      "industry": "Auto Manufacturers",
+      "currency": "USD",
+      "asset_class": "Stock",
+      "current_price": 263.54998779296875,
+      "price_date": "2025-03-28"
+    },
+    {
+      "ticker": "UNH",
+      "weight": 0.05,
+      "name": "UnitedHealth Group Incorporated",
+      "sector": "Healthcare",
+      "industry": "Healthcare Plans",
+      "currency": "USD",
+      "asset_class": "Stock",
+      "current_price": 516.0399780273438,
+      "price_date": "2025-03-28"
+    }
+  ]
+}

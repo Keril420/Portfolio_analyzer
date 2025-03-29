@@ -1,21 +1,18 @@
 import streamlit as st
-import sys
-import os
 from datetime import datetime
 import pandas as pd
+import os
+import sys
 
-# Добавляем корневую директорию проекта в путь для импорта
-sys.path.append(os.path.abspath(os.path.dirname(__file__)))
+# Добавляем корень проекта в путь Python
+sys.path.insert(0, os.path.abspath(os.path.dirname(os.path.dirname(__file__))))
 
-# Правильные импорты
-from utils.data_fetcher import DataFetcher, PortfolioDataManager
-from utils.calculations import PortfolioAnalytics
-from utils.risk_management import RiskManagement
-from utils.visualization import PortfolioVisualization
-import config
-import pages.portfolio_creation as portfolio_creation
-import pages.portfolio_analysis as portfolio_analysis
-import pages.portfolio_optimization as portfolio_optimization
+from src.utils.data_fetcher import DataFetcher, PortfolioDataManager
+from src.utils.calculations import PortfolioAnalytics
+from src.utils.risk_management import RiskManagement
+from src.utils.visualization import PortfolioVisualization
+import src.config as config
+from src.pages import portfolio_creation, portfolio_analysis, portfolio_optimization
 # Настройка страницы
 st.set_page_config(
     page_title="Система управления инвестиционным портфелем",

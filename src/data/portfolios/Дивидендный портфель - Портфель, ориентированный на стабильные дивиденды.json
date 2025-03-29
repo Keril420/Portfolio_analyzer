@@ -1,0 +1,96 @@
+{
+  "name": "Дивидендный портфель - Портфель, ориентированный на стабильные дивиденды",
+  "description": "Портфель, ориентированный на стабильные дивиденды",
+  "created": "2025-03-29 14:02:32",
+  "last_updated": "2025-03-29 14:02:36",
+  "assets": [
+    {
+      "ticker": "VYM",
+      "weight": 0.2,
+      "name": "Vanguard High Dividend Yield ETF",
+      "sector": "Equities",
+      "asset_class": "ETF",
+      "industry": "N/A",
+      "currency": "USD",
+      "current_price": 127.55000305175781,
+      "price_date": "2025-03-28"
+    },
+    {
+      "ticker": "SCHD",
+      "weight": 0.2,
+      "name": "Schwab US Dividend Equity ETF",
+      "sector": "Equities",
+      "asset_class": "ETF",
+      "industry": "N/A",
+      "currency": "USD",
+      "current_price": 27.579999923706055,
+      "price_date": "2025-03-28"
+    },
+    {
+      "ticker": "PG",
+      "weight": 0.1,
+      "name": "Procter & Gamble Co",
+      "sector": "Consumer Staples",
+      "industry": "Household & Personal Products",
+      "currency": "USD",
+      "asset_class": "Stock",
+      "current_price": 168.02999877929688,
+      "price_date": "2025-03-28"
+    },
+    {
+      "ticker": "JNJ",
+      "weight": 0.1,
+      "name": "Johnson & Johnson",
+      "sector": "Healthcare",
+      "industry": "Drug Manufacturers - General",
+      "currency": "USD",
+      "asset_class": "Stock",
+      "current_price": 163.7100067138672,
+      "price_date": "2025-03-28"
+    },
+    {
+      "ticker": "KO",
+      "weight": 0.1,
+      "name": "Coca-Cola Co",
+      "sector": "Consumer Staples",
+      "industry": "Beverages - Non-Alcoholic",
+      "currency": "USD",
+      "asset_class": "Stock",
+      "current_price": 70.37000274658203,
+      "price_date": "2025-03-28"
+    },
+    {
+      "ticker": "PEP",
+      "weight": 0.1,
+      "name": "PepsiCo, Inc.",
+      "sector": "Consumer Staples",
+      "industry": "Beverages - Non-Alcoholic",
+      "currency": "USD",
+      "asset_class": "Stock",
+      "current_price": 149.27000427246094,
+      "price_date": "2025-03-28"
+    },
+    {
+      "ticker": "MCD",
+      "weight": 0.1,
+      "name": "McDonald's Corp",
+      "sector": "Consumer Discretionary",
+      "industry": "Restaurants",
+      "currency": "USD",
+      "asset_class": "Stock",
+      "current_price": 307.0899963378906,
+      "price_date": "2025-03-28"
+    },
+    {
+      "ticker": "MMM",
+      "weight": 0.1,
+      "name": "3M Co",
+      "sector": "Industrials",
+      "industry": "Conglomerates",
+      "currency": "USD",
+      "asset_class": "Stock",
+      "current_price": 144.83999633789062,
+      "price_date": "2025-03-28"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+Metadata-Version: 2.4
+Name: investment-portfolio-app
+Version: 0.1.0
+Requires-Dist: streamlit>=1.0.0
+Requires-Dist: pandas>=1.0.0
+Requires-Dist: numpy>=1.0.0
+Requires-Dist: plotly>=5.0.0
+Requires-Dist: matplotlib>=3.0.0
+Requires-Dist: seaborn>=0.11.0
+Requires-Dist: scipy>=1.0.0
+Requires-Dist: yfinance>=0.1.0
+Requires-Dist: requests>=2.0.0
+Dynamic: requires-dist

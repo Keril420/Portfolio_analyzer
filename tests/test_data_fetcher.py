@@ -7,9 +7,14 @@ import numpy as np
 from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch, MagicMock
+import sys
+import os
 
-# Импортируем наш модуль
-from data_fetcher import DataFetcher, PortfolioDataManager
+# Добавляем путь к директории src для импорта
+sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'src'))
+
+# Импортируем модуль из src/utils
+from utils.data_fetcher import DataFetcher, PortfolioDataManager
 
 
 class TestDataFetcher(unittest.TestCase):

@@ -9,13 +9,14 @@ import os
 from datetime import datetime
 import pandas as pd
 
-# Добавляем корневую директорию проекта в путь для импорта
-sys.path.append(os.path.abspath(os.path.dirname(os.path.dirname(__file__))))
+# Добавляем корень проекта в путь Python
+sys.path.insert(0, os.path.abspath(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))))
 
-from utils.calculations import PortfolioAnalytics
-from utils.risk_management import RiskManagement
-from utils.visualization import PortfolioVisualization
-import config
+# Используем абсолютные импорты
+from src.utils.calculations import PortfolioAnalytics
+from src.utils.risk_management import RiskManagement
+from src.utils.visualization import PortfolioVisualization
+import src.config as config
 
 
 def run(data_fetcher, portfolio_manager):
@@ -125,6 +126,17 @@ def create_portfolio_manually(data_fetcher, portfolio_manager):
                     tickers_text, portfolio_name, portfolio_description
                 )
                 st.success(f"Портфель '{portfolio_name}' успешно создан с {len(portfolio['assets'])} активами!")
+
+                # Добавьте отладочную печать
+                st.write(f"Путь сохранения: {portfolio_manager.storage_dir}")
+                st.write(f"Содержимое директории до сохранения: {os.listdir(portfolio_manager.storage_dir)}")
+
+                # Явно сохраняем портфель
+                saved_path = portfolio_manager.save_portfolio(portfolio)
+
+                # Еще отладка после сохранения
+                st.write(f"Путь сохранения: {saved_path}")
+                st.write(f"Содержимое директории после сохранения: {os.listdir(portfolio_manager.storage_dir)}")
 
                 # Показываем итоговую структуру
                 st.subheader("Структура созданного портфеля")

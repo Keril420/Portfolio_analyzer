@@ -9,13 +9,14 @@ from datetime import datetime, timedelta
 import sys
 import os
 
-# Добавляем корневую директорию проекта в путь для импорта
-sys.path.append(os.path.abspath(os.path.dirname(os.path.dirname(__file__))))
+# Добавляем корень проекта в путь Python
+sys.path.insert(0, os.path.abspath(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))))
 
-from utils.calculations import PortfolioAnalytics
-from utils.risk_management import RiskManagement
-from utils.visualization import PortfolioVisualization
-import config
+# Используем абсолютные импорты
+from src.utils.calculations import PortfolioAnalytics
+from src.utils.risk_management import RiskManagement
+from src.utils.visualization import PortfolioVisualization
+import src.config as config
 
 def run(data_fetcher, portfolio_manager):
     """
