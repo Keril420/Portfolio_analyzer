@@ -370,3 +370,114 @@ class RiskManagement:
             'probabilities': probabilities,
             'simulation_data': simulation_results  # Full simulation data for visualization
         }
+
+    # Добавить в класс RiskManagement в файле src/utils/risk_management.py
+
+    @staticmethod
+    def analyze_drawdowns(returns: pd.Series) -> pd.DataFrame:
+        """
+        Анализирует периоды просадок и возвращает подробную информацию о них
+
+        Args:
+            returns: Серия доходностей
+
+        Returns:
+            DataFrame с информацией о просадках
+        """
+        if returns.empty:
+            return pd.DataFrame()
+
+        # Нормализуем индекс, чтобы устранить проблемы с часовыми поясами
+        returns_index = returns.index.tz_localize(None) if returns.index.tz else returns.index
+        returns = returns.copy()
+        returns.index = returns_index
+
+        # Рассчитываем кумулятивную доходность
+        cum_returns = (1 + returns).cumprod()
+
+        # Находим пики (максимумы)
+        peak = cum_returns.cummax()
+
+        # Рассчитываем просадки
+        drawdowns = (cum_returns / peak - 1)
+
+        # Находим периоды просадок
+        is_drawdown = drawdowns < 0
+
+        # Если нет просадок, возвращаем пустой DataFrame
+        if not is_drawdown.any():
+            return pd.DataFrame(columns=['start_date', 'valley_date', 'recovery_date', 'depth', 'length', 'recovery'])
+
+        # Группируем последовательные периоды просадок
+        drawdown_periods = []
+        in_drawdown = False
+        start_date = None
+        valley_date = None
+        valley_value = 0
+
+        for date, value in drawdowns.items():
+            if value < 0 and not in_drawdown:
+                # Начало новой просадки
+                in_drawdown = True
+                start_date = date
+                valley_date = date
+                valley_value = value
+            elif value < 0 and in_drawdown:
+                # Продолжение просадки
+                if value < valley_value:
+                    valley_date = date
+                    valley_value = value
+            elif value >= 0 and in_drawdown:
+                # Конец просадки (восстановление)
+                drawdown_periods.append({
+                    'start_date': start_date,
+                    'valley_date': valley_date,
+                    'recovery_date': date,
+                    'depth': valley_value,
+                    'length': (date - start_date).days,
+                    'recovery': (date - valley_date).days
+                })
+                in_drawdown = False
+
+        # Если мы все еще в просадке на последнюю дату
+        if in_drawdown:
+            drawdown_periods.append({
+                'start_date': start_date,
+                'valley_date': valley_date,
+                'recovery_date': None,
+                'depth': valley_value,
+                'length': (returns.index[-1] - start_date).days,
+                'recovery': None
+            })
+
+        # Создаем DataFrame и сортируем по глубине просадки
+        dd_df = pd.DataFrame(drawdown_periods)
+        if not dd_df.empty:
+            dd_df = dd_df.sort_values('depth')
+
+        return dd_df
+
+    @staticmethod
+    def calculate_underwater_series(returns: pd.Series) -> pd.Series:
+        """
+        Рассчитывает серию подводных значений (underwater) для визуализации
+
+        Args:
+            returns: Серия доходностей
+
+        Returns:
+            Серия подводных значений
+        """
+        if returns.empty:
+            return pd.Series()
+
+        # Рассчитываем кумулятивную доходность
+        cum_returns = (1 + returns).cumprod()
+
+        # Находим пики (максимумы)
+        peak = cum_returns.cummax()
+
+        # Рассчитываем просадки
+        underwater = (cum_returns / peak - 1)
+
+        return underwater

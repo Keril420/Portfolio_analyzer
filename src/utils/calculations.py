@@ -353,44 +353,62 @@ class PortfolioAnalytics:
 
         return cvar
 
+    # Заменим метод calculate_portfolio_metrics в классе PortfolioAnalytics
+
     @staticmethod
     def calculate_portfolio_metrics(returns: pd.Series, benchmark_returns: Optional[pd.Series] = None,
                                     risk_free_rate: float = 0.0, periods_per_year: int = 252) -> Dict:
         """
-        Calculate comprehensive portfolio performance metrics
+        Рассчитывает комплексные метрики производительности портфеля
 
         Args:
-            returns: Series with portfolio returns
-            benchmark_returns: Series with benchmark returns (optional)
-            risk_free_rate: Annual risk-free rate
-            periods_per_year: Number of periods in a year
+            returns: Серия доходностей портфеля
+            benchmark_returns: Серия доходностей бенчмарка (опционально)
+            risk_free_rate: Годовая безрисковая ставка
+            periods_per_year: Количество периодов в году
 
         Returns:
-            Dictionary with performance metrics
+            Словарь с метриками производительности
         """
         metrics = {}
 
         if returns.empty:
             return metrics
 
-        # Basic return metrics
+        # Базовые метрики доходности
         metrics['total_return'] = (1 + returns).prod() - 1
         metrics['annualized_return'] = PortfolioAnalytics.calculate_annualized_return(returns, periods_per_year)
         metrics['volatility'] = PortfolioAnalytics.calculate_volatility(returns, periods_per_year)
 
-        # Risk-adjusted performance ratios
+        # Метрики риска
         metrics['sharpe_ratio'] = PortfolioAnalytics.calculate_sharpe_ratio(returns, risk_free_rate, periods_per_year)
         metrics['sortino_ratio'] = PortfolioAnalytics.calculate_sortino_ratio(returns, risk_free_rate, periods_per_year)
         metrics['max_drawdown'] = PortfolioAnalytics.calculate_max_drawdown(returns)
         metrics['calmar_ratio'] = PortfolioAnalytics.calculate_calmar_ratio(returns, periods_per_year)
 
-        # Risk metrics
+        # Дополнительные метрики риска
         metrics['var_95'] = PortfolioAnalytics.calculate_var(returns, 0.95)
         metrics['cvar_95'] = PortfolioAnalytics.calculate_cvar(returns, 0.95)
         metrics['var_99'] = PortfolioAnalytics.calculate_var(returns, 0.99)
         metrics['cvar_99'] = PortfolioAnalytics.calculate_cvar(returns, 0.99)
 
-        # Benchmark-related metrics
+        # Статистика распределения
+        metrics['skewness'] = returns.skew() if len(returns) > 2 else 0
+        metrics['kurtosis'] = returns.kurtosis() if len(returns) > 3 else 0
+
+        # Метрики результативности
+        win_metrics = PortfolioAnalytics.calculate_win_metrics(returns)
+        metrics.update(win_metrics)
+
+        # Метрики для разных временных периодов
+        if isinstance(returns.index, pd.DatetimeIndex):
+            period_performance = PortfolioAnalytics.calculate_period_performance(returns)
+
+            # Добавляем с префиксом для разделения от других метрик
+            for period, value in period_performance.items():
+                metrics[f'period_{period}'] = value
+
+        # Метрики относительно бенчмарка
         if benchmark_returns is not None:
             common_index = returns.index.intersection(benchmark_returns.index)
             if len(common_index) > 0:
@@ -398,18 +416,262 @@ class PortfolioAnalytics:
                 aligned_benchmark = benchmark_returns.loc[common_index]
 
                 metrics['beta'] = PortfolioAnalytics.calculate_beta(aligned_returns, aligned_benchmark)
-                metrics['alpha'] = PortfolioAnalytics.calculate_alpha(
-                    aligned_returns, aligned_benchmark, risk_free_rate, periods_per_year
-                )
+                metrics['alpha'] = PortfolioAnalytics.calculate_alpha(aligned_returns, aligned_benchmark,
+                                                                      risk_free_rate, periods_per_year)
                 metrics['benchmark_return'] = (1 + aligned_benchmark).prod() - 1
                 metrics['tracking_error'] = (aligned_returns - aligned_benchmark).std() * np.sqrt(periods_per_year)
 
-                if metrics['tracking_error'] > 0:
-                    metrics['information_ratio'] = (
-                            (aligned_returns.mean() - aligned_benchmark.mean()) * periods_per_year / metrics[
-                        'tracking_error']
-                    )
-                else:
-                    metrics['information_ratio'] = 0.0
+                # Information Ratio
+                metrics['information_ratio'] = PortfolioAnalytics.calculate_information_ratio(aligned_returns,
+                                                                                              aligned_benchmark,
+                                                                                              periods_per_year)
 
-        return metrics
+                # Capture Ratios
+                capture_ratios = PortfolioAnalytics.calculate_capture_ratios(aligned_returns, aligned_benchmark)
+                metrics.update({
+                    'up_capture': capture_ratios['up_capture'],
+                    'down_capture': capture_ratios['down_capture'],
+                    'up_ratio': capture_ratios['up_ratio'],
+                    'down_ratio': capture_ratios['down_ratio']
+                })
+
+                # Bull/Bear Beta
+                bull_market = aligned_benchmark > 0
+                bear_market = aligned_benchmark < 0
+
+                if bull_market.sum() > 0:
+                    bull_returns = aligned_returns[bull_market]
+                    bull_benchmark = aligned_benchmark[bull_market]
+                    metrics['bull_beta'] = PortfolioAnalytics.calculate_beta(bull_returns, bull_benchmark)
+                else:
+                    metrics['bull_beta'] = 0.0
+
+                if bear_market.sum() > 0:
+                    bear_returns = aligned_returns[bear_market]
+                    bear_benchmark = aligned_benchmark[bear_market]
+                    metrics['bear_beta'] = PortfolioAnalytics.calculate_beta(bear_returns, bear_benchmark)
+                else:
+                    metrics['bear_beta'] = 0.0
+
+                # Периоды бенчмарка
+                if isinstance(aligned_benchmark.index, pd.DatetimeIndex):
+                    benchmark_period_performance = PortfolioAnalytics.calculate_period_performance(aligned_benchmark)
+
+                    # Добавляем с префиксом для разделения от метрик портфеля
+                    for period, value in benchmark_period_performance.items():
+                        metrics[f'benchmark_period_{period}'] = value
+
+            return metrics
+
+    # Добавить в конец класса PortfolioAnalytics в файле src/utils/calculations.py
+
+    @staticmethod
+    def calculate_information_ratio(returns: pd.Series, benchmark_returns: pd.Series,
+                                    periods_per_year: int = 252) -> float:
+        """
+        Рассчитывает Information Ratio - показатель риск-скорректированной доходности относительно бенчмарка
+        """
+        if returns.empty or benchmark_returns.empty:
+            return 0.0
+
+        # Выравниваем серии
+        common_index = returns.index.intersection(benchmark_returns.index)
+        returns = returns.loc[common_index]
+        benchmark_returns = benchmark_returns.loc[common_index]
+
+        # Рассчитываем избыточную доходность
+        excess_returns = returns - benchmark_returns
+
+        # Рассчитываем Information Ratio
+        tracking_error = excess_returns.std() * np.sqrt(periods_per_year)
+        if tracking_error == 0:
+            return 0.0
+
+        mean_excess = excess_returns.mean() * periods_per_year
+        return mean_excess / tracking_error
+
+    @staticmethod
+    def calculate_capture_ratios(returns: pd.Series, benchmark_returns: pd.Series) -> Dict[str, float]:
+        """
+        Рассчитывает Up/Down Capture Ratios - насколько портфель захватывает
+        восходящие/нисходящие движения бенчмарка
+        """
+        if returns.empty or benchmark_returns.empty:
+            return {'up_capture': 0.0, 'down_capture': 0.0, 'up_ratio': 0.0, 'down_ratio': 0.0}
+
+        # Выравниваем серии
+        common_index = returns.index.intersection(benchmark_returns.index)
+        returns = returns.loc[common_index]
+        benchmark_returns = benchmark_returns.loc[common_index]
+
+        # Разделяем на up и down периоды
+        up_periods = benchmark_returns > 0
+        down_periods = benchmark_returns < 0
+
+        # Рассчитываем Up/Down Capture
+        if up_periods.sum() > 0:
+            up_capture = returns[up_periods].mean() / benchmark_returns[up_periods].mean()
+        else:
+            up_capture = 0.0
+
+        if down_periods.sum() > 0:
+            down_capture = returns[down_periods].mean() / benchmark_returns[down_periods].mean()
+        else:
+            down_capture = 0.0
+
+        # Рассчитываем Up/Down Ratio
+        up_ratio = (1 + returns[up_periods]).prod() / (
+                    1 + benchmark_returns[up_periods]).prod() if up_periods.sum() > 0 else 1.0
+        down_ratio = (1 + returns[down_periods]).prod() / (
+                    1 + benchmark_returns[down_periods]).prod() if down_periods.sum() > 0 else 1.0
+
+        return {
+            'up_capture': up_capture,
+            'down_capture': down_capture,
+            'up_ratio': up_ratio,
+            'down_ratio': down_ratio
+        }
+
+    @staticmethod
+    def calculate_win_metrics(returns: pd.Series) -> Dict[str, float]:
+        """
+        Рассчитывает метрики результативности: Win Rate, Payoff Ratio и т.д.
+        """
+        if returns.empty:
+            return {'win_rate': 0.0, 'payoff_ratio': 0.0, 'profit_factor': 0.0}
+
+        # Считаем положительные и отрицательные торговые дни
+        wins = (returns > 0).sum()
+        losses = (returns < 0).sum()
+
+        # Win Rate
+        win_rate = wins / (wins + losses) if (wins + losses) > 0 else 0.0
+
+        # Payoff Ratio (средний выигрыш / средний проигрыш)
+        avg_win = returns[returns > 0].mean() if wins > 0 else 0.0
+        avg_loss = abs(returns[returns < 0].mean()) if losses > 0 else 0.0
+        payoff_ratio = avg_win / avg_loss if avg_loss > 0 else 0.0
+
+        # Profit Factor (сумма выигрышей / сумма проигрышей)
+        total_wins = returns[returns > 0].sum()
+        total_losses = abs(returns[returns < 0].sum())
+        profit_factor = total_wins / total_losses if total_losses > 0 else 0.0
+
+        return {
+            'win_rate': win_rate,
+            'payoff_ratio': payoff_ratio,
+            'profit_factor': profit_factor
+        }
+
+    @staticmethod
+    def calculate_period_performance(returns: pd.Series, periods: Dict[str, Tuple[str, str]] = None) -> Dict[
+        str, float]:
+        """
+        Рассчитывает доходность за различные периоды (MTD, YTD, 3Y, 5Y, и т.д.)
+
+        Args:
+            returns: Серия доходностей
+            periods: Словарь периодов в формате {'имя_периода': (начальная_дата, конечная_дата)}
+                    Если None, будут рассчитаны стандартные периоды
+
+        Returns:
+            Словарь с доходностями за указанные периоды
+        """
+        if returns.empty:
+            return {}
+
+        # Проверяем, что индекс - это DatetimeIndex
+        if not isinstance(returns.index, pd.DatetimeIndex):
+            return {}
+
+        # Нормализуем индекс, чтобы устранить проблемы с часовыми поясами
+        returns_index = returns.index.tz_localize(None) if returns.index.tz else returns.index
+        returns = returns.copy()
+        returns.index = returns_index
+
+        result = {}
+        today = returns_index.max()
+
+        # Рассчитываем стандартные периоды, если не указаны пользовательские
+        if periods is None:
+            # Month to Date
+            month_start = pd.Timestamp(today.year, today.month, 1)
+            month_start_idx = returns_index[returns_index >= month_start]
+            if len(month_start_idx) > 0:
+                nearest_date = month_start_idx[0]
+                result['MTD'] = (1 + returns[returns.index >= nearest_date]).prod() - 1
+
+            # Year to Date
+            year_start = pd.Timestamp(today.year, 1, 1)
+            year_start_idx = returns_index[returns_index >= year_start]
+            if len(year_start_idx) > 0:
+                nearest_date = year_start_idx[0]
+                result['YTD'] = (1 + returns[returns.index >= nearest_date]).prod() - 1
+
+            # 1 Month
+            one_month_ago = today - pd.DateOffset(months=1)
+            one_month_idx = returns_index[returns_index >= one_month_ago]
+            if len(one_month_idx) > 0:
+                nearest_date = one_month_idx[0]
+                result['1M'] = (1 + returns[returns.index >= nearest_date]).prod() - 1
+
+            # 3 Months
+            three_months_ago = today - pd.DateOffset(months=3)
+            three_month_idx = returns_index[returns_index >= three_months_ago]
+            if len(three_month_idx) > 0:
+                nearest_date = three_month_idx[0]
+                result['3M'] = (1 + returns[returns.index >= nearest_date]).prod() - 1
+
+            # 6 Months
+            six_months_ago = today - pd.DateOffset(months=6)
+            six_month_idx = returns_index[returns_index >= six_months_ago]
+            if len(six_month_idx) > 0:
+                nearest_date = six_month_idx[0]
+                result['6M'] = (1 + returns[returns.index >= nearest_date]).prod() - 1
+
+            # 1 Year
+            one_year_ago = today - pd.DateOffset(years=1)
+            one_year_idx = returns_index[returns_index >= one_year_ago]
+            if len(one_year_idx) > 0:
+                nearest_date = one_year_idx[0]
+                result['1Y'] = (1 + returns[returns.index >= nearest_date]).prod() - 1
+
+            # 3 Years
+            three_years_ago = today - pd.DateOffset(years=3)
+            three_year_idx = returns_index[returns_index >= three_years_ago]
+            if len(three_year_idx) > 0:
+                nearest_date = three_year_idx[0]
+                period_returns = returns[returns.index >= nearest_date]
+                if len(period_returns) > 0:
+                    period_total_return = (1 + period_returns).prod() - 1
+                    # Если есть достаточно данных для годового расчета
+                    if (today - nearest_date).days > 365:
+                        years_fraction = (today - nearest_date).days / 365
+                        result['3Y'] = (1 + period_total_return) ** (1 / years_fraction) - 1
+                    else:
+                        result['3Y'] = period_total_return
+
+            # 5 Years
+            five_years_ago = today - pd.DateOffset(years=5)
+            five_year_idx = returns_index[returns_index >= five_years_ago]
+            if len(five_year_idx) > 0:
+                nearest_date = five_year_idx[0]
+                period_returns = returns[returns.index >= nearest_date]
+                if len(period_returns) > 0:
+                    period_total_return = (1 + period_returns).prod() - 1
+                    # Если есть достаточно данных для годового расчета
+                    if (today - nearest_date).days > 365:
+                        years_fraction = (today - nearest_date).days / 365
+                        result['5Y'] = (1 + period_total_return) ** (1 / years_fraction) - 1
+                    else:
+                        result['5Y'] = period_total_return
+        else:
+            # Используем пользовательские периоды
+            for period_name, (start_date, end_date) in periods.items():
+                start_timestamp = pd.Timestamp(start_date).tz_localize(None)
+                end_timestamp = pd.Timestamp(end_date).tz_localize(None)
+                period_returns = returns[(returns.index >= start_timestamp) & (returns.index <= end_timestamp)]
+                if not period_returns.empty:
+                    result[period_name] = (1 + period_returns).prod() - 1
+
+        return result
