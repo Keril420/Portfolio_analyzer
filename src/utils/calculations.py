@@ -366,13 +366,10 @@ class PortfolioAnalytics:
 
         return cvar
 
-    # Заменим метод calculate_portfolio_metrics в классе PortfolioAnalytics
-
-    # Место добавления: заменить существующий метод calculate_portfolio_metrics в src/utils/calculations.py
-
     @staticmethod
-    def calculate_portfolio_metrics(returns: pd.Series, benchmark_returns: Optional[pd.Series] = None,
+    def calculate_portfolio_metrics(returns: pd.Series, benchmark_returns: pd.Series,
                                     risk_free_rate: float = 0.0, periods_per_year: int = 252) -> Dict:
+        metrics = {}
         """
         Рассчитывает комплексные метрики производительности портфеля
 
@@ -424,6 +421,7 @@ class PortfolioAnalytics:
                 metrics[f'period_{period}'] = value
 
         # Метрики относительно бенчмарка
+
         if benchmark_returns is not None:
             common_index = returns.index.intersection(benchmark_returns.index)
 
@@ -439,12 +437,6 @@ class PortfolioAnalytics:
                 metrics['benchmark_volatility'] = PortfolioAnalytics.calculate_volatility(
                     aligned_benchmark, periods_per_year)
                 metrics['benchmark_max_drawdown'] = PortfolioAnalytics.calculate_max_drawdown(aligned_benchmark)
-
-                # Коэффициенты относительно бенчмарка
-                metrics['beta'] = PortfolioAnalytics.calculate_beta(aligned_returns, aligned_benchmark)
-                metrics['alpha'] = PortfolioAnalytics.calculate_alpha(
-                    aligned_returns, aligned_benchmark, risk_free_rate, periods_per_year)
-                metrics['tracking_error'] = (aligned_returns - aligned_benchmark).std() * np.sqrt(periods_per_year)
 
                 # Коэффициенты бенчмарка
                 metrics['benchmark_sharpe_ratio'] = PortfolioAnalytics.calculate_sharpe_ratio(

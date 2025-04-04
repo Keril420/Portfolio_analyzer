@@ -136,30 +136,6 @@ def create_interactive_stress_impact_chart(stress_results, portfolio_value):
         yaxis_title='Потери ($)',
         hovermode='closest',
         clickmode='event+select',
-        updatemenus=[
-            dict(
-                type="buttons",
-                direction="right",
-                buttons=[
-                    dict(
-                        args=[{"yaxis.type": "linear"}],
-                        label="Линейная шкала",
-                        method="relayout"
-                    ),
-                    dict(
-                        args=[{"yaxis.type": "log"}],
-                        label="Логарифмическая шкала",
-                        method="relayout"
-                    )
-                ],
-                pad={"r": 10, "t": 10},
-                showactive=True,
-                x=0.1,
-                xanchor="left",
-                y=1.15,
-                yanchor="top"
-            )
-        ]
     )
 
     # Добавляем аннотацию

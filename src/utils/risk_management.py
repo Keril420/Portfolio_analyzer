@@ -254,11 +254,10 @@ class RiskManagement:
             'position_losses': position_losses
         }
 
-    # Добавим этот метод в класс RiskManagement в файле src/utils/risk_management.py
-
+    # Измените объявление функции:
     @staticmethod
     def perform_historical_stress_test(data_fetcher, current_portfolio_tickers, weights, scenario_name,
-                                       portfolio_value=10000):
+                                       portfolio_value=10000, portfolio_data=None):
         """
         Проводит стресс-тестирование на основе исторических данных конкретного сценария
 
@@ -268,6 +267,7 @@ class RiskManagement:
             weights: Словарь с весами активов {ticker: weight}
             scenario_name: Название сценария
             portfolio_value: Текущая стоимость портфеля
+            portfolio_data: Данные портфеля (опционально)
 
         Returns:
             Dictionary с результатами стресс-теста
@@ -400,7 +400,7 @@ class RiskManagement:
                 # после строки "if ticker in historical_data and not historical_data[ticker].empty:"
                 # и перед строкой "else:"
 
-                # Расширенная обработка отсутствующих данных
+                # Эта часть заменяет все упоминания portfolio_data в методе:
                 if ticker not in historical_data or historical_data[ticker].empty:
                     # Инициализация словаря для отслеживания типов аппроксимации
                     if 'approximation_types' not in locals():
@@ -411,13 +411,14 @@ class RiskManagement:
                     ticker_sector = None
 
                     # Определяем сектор текущего актива
-                    for asset in portfolio_data['assets']:
-                        if asset['ticker'] == ticker and 'sector' in asset:
-                            ticker_sector = asset['sector']
-                            break
+                    if portfolio_data and 'assets' in portfolio_data:
+                        for asset in portfolio_data['assets']:
+                            if asset['ticker'] == ticker and 'sector' in asset:
+                                ticker_sector = asset['sector']
+                                break
 
                     # Если известен сектор, собираем тикеры из того же сектора
-                    if ticker_sector:
+                    if ticker_sector and portfolio_data and 'assets' in portfolio_data:
                         for asset in portfolio_data['assets']:
                             if 'sector' in asset and asset['sector'] == ticker_sector and asset['ticker'] != ticker:
                                 sector_tickers.append(asset['ticker'])
