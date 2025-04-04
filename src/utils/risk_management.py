@@ -396,6 +396,64 @@ class RiskManagement:
                     last_price = ticker_data['Close'].iloc[-1]
                     price_change = (last_price - first_price) / first_price
                     asset_price_changes[ticker] = price_change
+                # Место добавления: в функции perform_historical_stress_test,
+                # после строки "if ticker in historical_data and not historical_data[ticker].empty:"
+                # и перед строкой "else:"
+
+                # Расширенная обработка отсутствующих данных
+                if ticker not in historical_data or historical_data[ticker].empty:
+                    # Инициализация словаря для отслеживания типов аппроксимации
+                    if 'approximation_types' not in locals():
+                        approximation_types = {}
+
+                    # Поиск активов того же сектора
+                    sector_tickers = []
+                    ticker_sector = None
+
+                    # Определяем сектор текущего актива
+                    for asset in portfolio_data['assets']:
+                        if asset['ticker'] == ticker and 'sector' in asset:
+                            ticker_sector = asset['sector']
+                            break
+
+                    # Если известен сектор, собираем тикеры из того же сектора
+                    if ticker_sector:
+                        for asset in portfolio_data['assets']:
+                            if 'sector' in asset and asset['sector'] == ticker_sector and asset['ticker'] != ticker:
+                                sector_tickers.append(asset['ticker'])
+
+                    # Если найдены активы из того же сектора с данными, используем их среднее изменение
+                    if sector_tickers:
+                        sector_changes = []
+                        for sector_ticker in sector_tickers:
+                            if sector_ticker in historical_data and not historical_data[sector_ticker].empty:
+                                s_data = historical_data[sector_ticker]
+                                if len(s_data) >= 2:
+                                    s_first = s_data['Close'].iloc[0]
+                                    s_last = s_data['Close'].iloc[-1]
+                                    s_change = (s_last - s_first) / s_first
+                                    sector_changes.append(s_change)
+
+                        if sector_changes:
+                            # Используем среднее изменение по сектору
+                            asset_price_changes[ticker] = sum(sector_changes) / len(sector_changes)
+                            approximation_types[ticker] = "sector_proxy"
+                            continue
+
+                    # Если нет данных о секторе или о других активах сектора, используем индекс с корректировкой на бету
+                    # Получаем текущую бету, если возможно
+                    current_beta = 1.0  # По умолчанию
+
+                    # Инициализация словаря бет, если он еще не существует
+                    if 'betas' not in locals():
+                        betas = {}
+                        # Можно добавить код для получения бет активов, но для простоты оставим значение по умолчанию
+
+                    if ticker in betas:
+                        current_beta = betas[ticker]
+
+                    asset_price_changes[ticker] = index_price_change * current_beta
+                    approximation_types[ticker] = "market_proxy"
                 else:
                     # Если недостаточно данных, используем изменение индекса с коэффициентом бета = 1
                     asset_price_changes[ticker] = index_price_change

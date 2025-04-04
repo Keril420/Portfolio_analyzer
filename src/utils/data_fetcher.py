@@ -52,12 +52,19 @@ class DataFetcher:
             'alpha_vantage': self._fetch_alpha_vantage
         }
 
+        # Предзагрузка данных бенчмарков
+        self.benchmark_data = {}
+        self.benchmark_tickers = ['SPY', 'QQQ', 'IWM', 'DIA', 'VTI']
+        self.preload_benchmarks()
+
         logger.info(f"Инициализирован DataFetcher с кешем в {self.cache_dir}")
 
         # Предзагрузка данных бенчмарков
         self.benchmark_data = {}
         self.benchmark_tickers = ['SPY', 'QQQ', 'IWM', 'DIA', 'VTI']
         self.preload_benchmarks()
+
+    # Место добавления: новый метод в классе DataFetcher
 
     def preload_benchmarks(self):
         """Предзагрузка данных основных бенчмарков с большим историческим периодом"""
@@ -1321,20 +1328,40 @@ class PortfolioDataManager:
         if not file_path.exists():
             # Ищем файлы с похожими именами
             potential_files = list(self.storage_dir.glob('*.json'))
+
+            # Нормализуем имя файла для сравнения (удаление пробелов и перевод в нижний регистр)
+            normalized_name = filename.lower().replace(' ', '').replace('&', 'and')
+
             for potential_file in potential_files:
-                # Нормализуем имена для сравнения
-                normalized_name = filename.replace('\\', '_').replace('/', '_').replace(':', '_')
-                potential_normalized = potential_file.name
+                # Нормализуем имя потенциального файла
+                potential_normalized = potential_file.name.lower().replace(' ', '').replace('&', 'and')
 
-                # Проверяем, насколько похожи имена
-                if normalized_name.lower().replace(' ', '') == potential_normalized.lower().replace(' ', ''):
+                # Проверяем на совпадение после нормализации
+                if normalized_name == potential_normalized:
                     file_path = potential_file
+                    logger.info(f"Найдено альтернативное имя файла: {potential_file}")
                     break
 
-                # Также проверяем по началу имени (первые 10+ символов)
-                if len(normalized_name) > 10 and normalized_name[:10].lower() == potential_normalized[:10].lower():
+                # Также проверяем по началу имени
+                if len(normalized_name) > 10 and normalized_name[:10] == potential_normalized[:10]:
                     file_path = potential_file
+                    logger.info(f"Найдено похожее имя файла: {potential_file}")
                     break
+
+        if not file_path.exists():
+            # Если файл все еще не найден, попробуем поискать имя внутри JSON файлов
+            for json_file in self.storage_dir.glob('*.json'):
+                try:
+                    with open(json_file, 'r', encoding='utf-8') as f:
+                        data = json.load(f)
+                        # Проверяем, совпадает ли имя портфеля с запрошенным
+                        if 'name' in data and data['name'] == filename.replace('.json', ''):
+                            file_path = json_file
+                            logger.info(f"Найден файл по имени портфеля: {json_file}")
+                            break
+                except Exception:
+                    # Игнорируем ошибки при чтении файлов
+                    continue
 
         if not file_path.exists():
             raise FileNotFoundError(f"Файл портфеля не найден: {file_path}")
@@ -1687,6 +1714,9 @@ class PortfolioDataManager:
         # Заменяем недопустимые символы на '_'
         # Расширенный список символов, которые нужно заменить
         filename = re.sub(r'[\\/*?:"<>|%\\\\\s]', '_', filename)
+
+        # Также заменяем амперсанд (&), который может вызывать проблемы
+        filename = filename.replace('&', 'and')
 
         # Также заменяем слеши и двоеточия, которые могут вызывать проблемы
         filename = filename.replace('\\', '_').replace('/', '_').replace(':', '_')

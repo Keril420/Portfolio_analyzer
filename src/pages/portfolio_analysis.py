@@ -20,7 +20,8 @@ from src.utils.calculations import PortfolioAnalytics
 from src.utils.risk_management import RiskManagement
 from src.utils.visualization import PortfolioVisualization
 import src.config as config
-
+from src.utils.historical_context import historical_crisis_context, display_historical_context
+from src.utils.advanced_visualizations import create_stress_impact_heatmap, create_interactive_stress_impact_chart, create_risk_tree_visualization
 # Добавляем нашу новую функцию здесь
 def load_portfolio_data(data_fetcher, tickers, start_date_str, end_date_str, benchmark=None):
     """
@@ -413,6 +414,7 @@ def run(data_fetcher, portfolio_manager):
                     margin=dict(l=20, r=20, t=40, b=20)
                 )
                 st.plotly_chart(fig_sectors, use_container_width=True)
+
 
     # Вкладка "Доходность"
     with tabs[1]:
@@ -1753,6 +1755,10 @@ def run(data_fetcher, portfolio_manager):
     with tabs[5]:
         st.subheader("Стресс-тестирование")
 
+        # Создание визуализации дерева риска
+        risk_tree_fig = create_risk_tree_visualization(portfolio_data)
+        st.plotly_chart(risk_tree_fig, use_container_width=True)
+
         # Создаем подвкладки для разных видов стресс-тестов
         stress_tabs = st.tabs([
             "Исторические сценарии",
@@ -1933,6 +1939,7 @@ def run(data_fetcher, portfolio_manager):
 
                     st.plotly_chart(fig_stress, use_container_width=True)
 
+
                     # Сравниваем воздействие на уровне классов активов или секторов, если данные доступны
                     sectors = {}
                     for asset in portfolio_data['assets']:
@@ -1989,9 +1996,62 @@ def run(data_fetcher, portfolio_manager):
                         )
 
                         st.plotly_chart(fig_sector, use_container_width=True)
+                        # Добавьте этот код после отображения основных результатов стресс-теста
+                        if st.button("Показать расширенный анализ", key="show_extended_analysis"):
+                            # Добавление кнопки для отображения исторического контекста
+                            if 'scenario' in stress_test_result and stress_test_result[
+                                'scenario'] in historical_crisis_context:
+                                display_historical_context(stress_test_result['scenario'])
 
-        # Остальные вкладки стресс-тестирования остаются без изменений
-        # Сохраняем существующий функционал для других вкладок
+                            # Добавление улучшенных визуализаций для стресс-теста
+                            st.subheader("Расширенная визуализация стресс-теста")
+
+                            # Создание интерактивной диаграммы влияния
+                            interactive_chart = create_interactive_stress_impact_chart(
+                                {stress_test_result['scenario']: stress_test_result},
+                                portfolio_value
+                            )
+                            st.plotly_chart(interactive_chart, use_container_width=True)
+
+                            # Создание тепловых карт влияния на активы и секторы
+                            fig_assets, fig_sectors = create_stress_impact_heatmap(
+                                portfolio_data,
+                                {stress_test_result['scenario']: stress_test_result}
+                            )
+                            st.plotly_chart(fig_assets, use_container_width=True)
+                            st.plotly_chart(fig_sectors, use_container_width=True)
+
+                            # Создание визуализации дерева риска
+                            risk_tree_fig = create_risk_tree_visualization(portfolio_data)
+                            st.plotly_chart(risk_tree_fig, use_container_width=True)
+                        # После отображения всех результатов стресс-теста
+                        if st.button("Показать расширенную аналитику"):
+                            # Отображение исторического контекста, если доступен
+                            if 'scenario' in stress_test_result and stress_test_result[
+                                'scenario'] in historical_crisis_context:
+                                st.subheader("Исторический контекст")
+                                display_historical_context(stress_test_result['scenario'])
+
+                            # Улучшенные визуализации
+                            st.subheader("Расширенная визуализация стресс-теста")
+
+                            try:
+                                # Интерактивная диаграмма влияния
+                                interactive_chart = create_interactive_stress_impact_chart(
+                                    {stress_test_result['scenario']: stress_test_result},
+                                    portfolio_value
+                                )
+                                st.plotly_chart(interactive_chart, use_container_width=True)
+
+                                # Тепловые карты влияния
+                                fig_assets, fig_sectors = create_stress_impact_heatmap(
+                                    portfolio_data,
+                                    {stress_test_result['scenario']: stress_test_result}
+                                )
+                                st.plotly_chart(fig_assets, use_container_width=True)
+                                st.plotly_chart(fig_sectors, use_container_width=True)
+                            except Exception as e:
+                                st.error(f"Ошибка при создании визуализаций: {e}")
 
         with stress_tabs[1]:
             st.subheader("Пользовательский стресс-тест")

@@ -13,6 +13,9 @@ from src.utils.risk_management import RiskManagement
 from src.utils.visualization import PortfolioVisualization
 import src.config as config
 from src.pages import portfolio_creation, portfolio_analysis, portfolio_optimization
+from src.utils.scenario_chaining import scenario_chaining_page
+from src.utils.advanced_visualizations import create_stress_impact_heatmap, create_interactive_stress_impact_chart, create_risk_tree_visualization
+from src.utils.historical_context import display_historical_context, historical_analogy_page
 # Настройка страницы
 st.set_page_config(
     page_title="Система управления инвестиционным портфелем",
@@ -43,7 +46,9 @@ def main():
         "Главная",
         "Создание портфеля",
         "Анализ портфеля",
-        "Оптимизация портфеля"
+        "Оптимизация портфеля",
+        "Цепочки стресс-событий",  # Новая страница
+        "Исторические аналогии"  # Новая страница
     ]
 
     # Выбор страницы
@@ -61,6 +66,10 @@ def main():
         portfolio_analysis.run(data_fetcher, portfolio_manager)
     elif selected_page == "Оптимизация портфеля":
         portfolio_optimization.run(data_fetcher, portfolio_manager)
+    elif selected_page == "Цепочки стресс-событий":
+        scenario_chaining_page()  # Новая страница
+    elif selected_page == "Исторические аналогии":
+        historical_analogy_page()  # Новая страница
 
     # Дополнительная информация в боковой панели
     with st.sidebar.expander("О программе"):

@@ -368,6 +368,8 @@ class PortfolioAnalytics:
 
     # Заменим метод calculate_portfolio_metrics в классе PortfolioAnalytics
 
+    # Место добавления: заменить существующий метод calculate_portfolio_metrics в src/utils/calculations.py
+
     @staticmethod
     def calculate_portfolio_metrics(returns: pd.Series, benchmark_returns: Optional[pd.Series] = None,
                                     risk_free_rate: float = 0.0, periods_per_year: int = 252) -> Dict:
@@ -424,20 +426,41 @@ class PortfolioAnalytics:
         # Метрики относительно бенчмарка
         if benchmark_returns is not None:
             common_index = returns.index.intersection(benchmark_returns.index)
+
             if len(common_index) > 0:
+                # Выравниваем серии по общему индексу
                 aligned_returns = returns.loc[common_index]
                 aligned_benchmark = benchmark_returns.loc[common_index]
 
+                # Базовые метрики бенчмарка
+                metrics['benchmark_total_return'] = (1 + aligned_benchmark).prod() - 1
+                metrics['benchmark_annualized_return'] = PortfolioAnalytics.calculate_annualized_return(
+                    aligned_benchmark, periods_per_year)
+                metrics['benchmark_volatility'] = PortfolioAnalytics.calculate_volatility(
+                    aligned_benchmark, periods_per_year)
+                metrics['benchmark_max_drawdown'] = PortfolioAnalytics.calculate_max_drawdown(aligned_benchmark)
+
+                # Коэффициенты относительно бенчмарка
                 metrics['beta'] = PortfolioAnalytics.calculate_beta(aligned_returns, aligned_benchmark)
-                metrics['alpha'] = PortfolioAnalytics.calculate_alpha(aligned_returns, aligned_benchmark,
-                                                                      risk_free_rate, periods_per_year)
-                metrics['benchmark_return'] = (1 + aligned_benchmark).prod() - 1
+                metrics['alpha'] = PortfolioAnalytics.calculate_alpha(
+                    aligned_returns, aligned_benchmark, risk_free_rate, periods_per_year)
                 metrics['tracking_error'] = (aligned_returns - aligned_benchmark).std() * np.sqrt(periods_per_year)
 
+                # Коэффициенты бенчмарка
+                metrics['benchmark_sharpe_ratio'] = PortfolioAnalytics.calculate_sharpe_ratio(
+                    aligned_benchmark, risk_free_rate, periods_per_year)
+                metrics['benchmark_sortino_ratio'] = PortfolioAnalytics.calculate_sortino_ratio(
+                    aligned_benchmark, risk_free_rate, periods_per_year)
+                metrics['benchmark_calmar_ratio'] = PortfolioAnalytics.calculate_calmar_ratio(
+                    aligned_benchmark, periods_per_year)
+
+                # Дополнительные метрики риска бенчмарка
+                metrics['benchmark_var_95'] = PortfolioAnalytics.calculate_var(aligned_benchmark, 0.95)
+                metrics['benchmark_cvar_95'] = PortfolioAnalytics.calculate_cvar(aligned_benchmark, 0.95)
+
                 # Information Ratio
-                metrics['information_ratio'] = PortfolioAnalytics.calculate_information_ratio(aligned_returns,
-                                                                                              aligned_benchmark,
-                                                                                              periods_per_year)
+                metrics['information_ratio'] = PortfolioAnalytics.calculate_information_ratio(
+                    aligned_returns, aligned_benchmark, periods_per_year)
 
                 # Capture Ratios
                 capture_ratios = PortfolioAnalytics.calculate_capture_ratios(aligned_returns, aligned_benchmark)
@@ -447,36 +470,24 @@ class PortfolioAnalytics:
                     'up_ratio': capture_ratios['up_ratio'],
                     'down_ratio': capture_ratios['down_ratio']
                 })
+        else:
+            # Установить стандартные значения для бенчмарка, если он не предоставлен
+            metrics['benchmark_total_return'] = 0.0
+            metrics['benchmark_annualized_return'] = 0.0
+            metrics['benchmark_volatility'] = 0.0
+            metrics['benchmark_max_drawdown'] = 0.0
+            metrics['benchmark_sharpe_ratio'] = 0.0
+            metrics['benchmark_sortino_ratio'] = 0.0
+            metrics['benchmark_calmar_ratio'] = 0.0
+            metrics['benchmark_var_95'] = 0.0
+            metrics['benchmark_cvar_95'] = 0.0
+            metrics['beta'] = 1.0  # По умолчанию для бенчмарка
+            metrics['alpha'] = 0.0
+            metrics['information_ratio'] = 0.0
+            metrics['up_capture'] = 1.0
+            metrics['down_capture'] = 1.0
 
-                # Bull/Bear Beta
-                bull_market = aligned_benchmark > 0
-                bear_market = aligned_benchmark < 0
-
-                if bull_market.sum() > 0:
-                    bull_returns = aligned_returns[bull_market]
-                    bull_benchmark = aligned_benchmark[bull_market]
-                    metrics['bull_beta'] = PortfolioAnalytics.calculate_beta(bull_returns, bull_benchmark)
-                else:
-                    metrics['bull_beta'] = 0.0
-
-                if bear_market.sum() > 0:
-                    bear_returns = aligned_returns[bear_market]
-                    bear_benchmark = aligned_benchmark[bear_market]
-                    metrics['bear_beta'] = PortfolioAnalytics.calculate_beta(bear_returns, bear_benchmark)
-                else:
-                    metrics['bear_beta'] = 0.0
-
-                # Периоды бенчмарка
-                if isinstance(aligned_benchmark.index, pd.DatetimeIndex):
-                    benchmark_period_performance = PortfolioAnalytics.calculate_period_performance(aligned_benchmark)
-
-                    # Добавляем с префиксом для разделения от метрик портфеля
-                    for period, value in benchmark_period_performance.items():
-                        metrics[f'benchmark_period_{period}'] = value
-
-            return metrics
-
-    # Добавить в конец класса PortfolioAnalytics в файле src/utils/calculations.py
+        return metrics
 
     @staticmethod
     def calculate_information_ratio(returns: pd.Series, benchmark_returns: pd.Series,
