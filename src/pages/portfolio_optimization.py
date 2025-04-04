@@ -163,25 +163,64 @@ def optimize_existing_portfolio(data_fetcher, portfolio_manager):
         target_return = None
 
     # Ограничения весов
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
 
     with col1:
+        # Делаем минимальный вес адаптивным в зависимости от числа активов
+        n_assets = len(portfolio_data['assets'])
+        suggested_min_weight = max(0.01, min(0.05, 1.0 / (n_assets * 2)))  # Адаптивное предложение
+
         min_weight = st.slider(
             "Минимальный вес актива (%)",
             min_value=0.0,
-            max_value=50.0,
-            value=1.0,
+            max_value=min(50.0, 100.0 / n_assets),
+            value=suggested_min_weight * 100,
             step=0.5
         ) / 100
 
     with col2:
         max_weight = st.slider(
             "Максимальный вес актива (%)",
-            min_value=10.0,
+            min_value=max(5.0, 100.0 / n_assets),
             max_value=100.0,
-            value=30.0,
+            value=min(30.0, 100.0 / (n_assets / 3)),  # Адаптивное предложение
             step=5.0
         ) / 100
+
+    with col3:
+        # Добавляем переключатель для секторных ограничений
+        use_sector_constraints = st.checkbox("Ограничения по секторам", value=False)
+
+        if use_sector_constraints:
+            # Получаем секторы активов
+            sectors = {}
+            for asset in portfolio_data['assets']:
+                if 'sector' in asset and asset['sector'] != 'N/A':
+                    sector = asset['sector']
+                    if sector not in sectors:
+                        sectors[sector] = []
+                    sectors[sector].append(asset['ticker'])
+
+            # Если найдены секторы, показываем дополнительные настройки
+            if sectors:
+                st.write("Максимальный вес сектора:")
+                for sector, tickers in sectors.items():
+                    # Рассчитываем текущий вес сектора
+                    current_sector_weight = sum(portfolio_data['assets'][i]['weight']
+                                                for i, asset in enumerate(portfolio_data['assets'])
+                                                if 'sector' in asset and asset['sector'] == sector)
+
+                    # Устанавливаем ограничение для сектора (значение по умолчанию - текущий вес + 10%)
+                    max_sector_weight = st.slider(
+                        f"{sector}",
+                        min_value=float(current_sector_weight * 100),
+                        max_value=100.0,
+                        value=min(current_sector_weight * 100 + 10, 100.0),
+                        step=5.0
+                    ) / 100
+
+                    # Сохраняем ограничение для сектора
+                    sectors[sector] = {'tickers': tickers, 'max_weight': max_sector_weight}
 
     # Кнопка для запуска оптимизации
     if st.button("Оптимизировать портфель"):
@@ -232,6 +271,10 @@ def optimize_existing_portfolio(data_fetcher, portfolio_manager):
                 optimization_args['target_return'] = target_return
 
             # Запускаем оптимизацию
+            if use_sector_constraints and sectors:
+                # Добавляем секторные ограничения к аргументам оптимизации
+                optimization_args['sector_constraints'] = sectors
+
             optimization_result = PortfolioOptimizer.optimize_portfolio(
                 returns, method=method, **optimization_args
             )

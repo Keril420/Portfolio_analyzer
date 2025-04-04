@@ -289,6 +289,7 @@ class PortfolioVisualization:
 
     # Добавить в класс PortfolioVisualization в файле src/utils/visualization.py
 
+    # Улучшаем масштабирование цветовой шкалы в create_monthly_returns_heatmap
     @staticmethod
     def create_monthly_returns_heatmap(returns: pd.Series) -> pd.DataFrame:
         """
@@ -332,6 +333,20 @@ class PortfolioVisualization:
 
         if not annual_returns.empty:
             heatmap_data['Год'] = annual_returns.values
+
+        # Расчет разумных границ для цветовой шкалы
+        # Используем персентили вместо мин/макс для устранения выбросов
+        flat_data = heatmap_data.values.flatten()
+        flat_data = flat_data[~np.isnan(flat_data)]  # Убираем NaN
+
+        if len(flat_data) > 0:
+            vmin = np.percentile(flat_data, 5)  # 5-й персентиль
+            vmax = np.percentile(flat_data, 95)  # 95-й персентиль
+
+            # Балансируем шкалу для лучшего восприятия
+            abs_max = max(abs(vmin), abs(vmax))
+            heatmap_data.attrs['vmin'] = -abs_max
+            heatmap_data.attrs['vmax'] = abs_max
 
         return heatmap_data
 

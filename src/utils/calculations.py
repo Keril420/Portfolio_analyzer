@@ -156,6 +156,7 @@ class PortfolioAnalytics:
         sharpe_ratio = annualized_excess_return / annualized_volatility
         return sharpe_ratio
 
+    # Исправляем проблему с делением на ноль в методе calculate_sortino_ratio
     @staticmethod
     def calculate_sortino_ratio(returns: pd.Series, risk_free_rate: float = 0.0, periods_per_year: int = 252) -> float:
         """
@@ -181,17 +182,20 @@ class PortfolioAnalytics:
         # Calculate downside deviation (only negative returns)
         negative_returns = returns[returns < period_risk_free] - period_risk_free
 
-        if len(negative_returns) == 0:
-            return float('inf')  # No negative returns
+        if len(negative_returns) == 0 or abs(negative_returns.std()) < 1e-10:
+            # Если нет отрицательной доходности, возвращаем большое значение (но не бесконечность)
+            return 100.0  # Высокое значение вместо бесконечности
 
+        # Используем стандартное отклонение отрицательных доходностей
         downside_deviation = np.sqrt(np.mean(negative_returns ** 2)) * np.sqrt(periods_per_year)
 
-        if downside_deviation == 0:
-            return 0.0
+        if downside_deviation < 1e-10:  # Проверка на очень малое значение
+            return 100.0  # Высокое значение вместо деления на малое число
 
         sortino_ratio = annualized_excess_return / downside_deviation
         return sortino_ratio
 
+    # Исправляем метод расчета максимальной просадки
     @staticmethod
     def calculate_max_drawdown(returns: pd.Series) -> float:
         """
@@ -203,16 +207,25 @@ class PortfolioAnalytics:
         Returns:
             Maximum drawdown as a float (positive value)
         """
-        if returns.empty:
+        if returns.empty or len(returns) < 5:  # Требуем минимум 5 точек данных
             return 0.0
 
-        cumulative_returns = (1 + returns).cumprod()
-        peak_values = cumulative_returns.cummax()
-        drawdowns = (cumulative_returns / peak_values) - 1
-        max_drawdown = drawdowns.min()
+        try:
+            cumulative_returns = (1 + returns).cumprod()
+            peak_values = cumulative_returns.cummax()
+            drawdowns = (cumulative_returns / peak_values) - 1
+            max_drawdown = drawdowns.min()
 
-        # Return positive value for easier interpretation
-        return abs(max_drawdown)
+            # Проверяем на выбросы (слишком большие просадки)
+            if max_drawdown < -0.99:  # Просадка более 99% подозрительна
+                logger.warning(f"Обнаружена экстремальная просадка: {max_drawdown:.2%}")
+                # Можно применить винзоризацию или другую обработку выбросов
+
+            # Return positive value for easier interpretation
+            return abs(max_drawdown)
+        except Exception as e:
+            logger.error(f"Ошибка при расчете максимальной просадки: {e}")
+            return 0.0
 
     @staticmethod
     def calculate_calmar_ratio(returns: pd.Series, periods_per_year: int = 252) -> float:

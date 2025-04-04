@@ -54,6 +54,25 @@ class DataFetcher:
 
         logger.info(f"Инициализирован DataFetcher с кешем в {self.cache_dir}")
 
+        # Предзагрузка данных бенчмарков
+        self.benchmark_data = {}
+        self.benchmark_tickers = ['SPY', 'QQQ', 'IWM', 'DIA', 'VTI']
+        self.preload_benchmarks()
+
+    def preload_benchmarks(self):
+        """Предзагрузка данных основных бенчмарков с большим историческим периодом"""
+        start_date = '1990-01-01'  # Достаточно давно для большинства бенчмарков
+        end_date = datetime.now().strftime('%Y-%m-%d')
+
+        for ticker in self.benchmark_tickers:
+            try:
+                data = self.get_historical_prices(ticker, start_date, end_date, force_refresh=False)
+                if not data.empty:
+                    self.benchmark_data[ticker] = data
+                    logger.info(f"Предзагружены исторические данные для бенчмарка {ticker}")
+            except Exception as e:
+                logger.warning(f"Не удалось предзагрузить данные для бенчмарка {ticker}: {e}")
+
     def get_historical_prices(
             self,
             ticker: str,

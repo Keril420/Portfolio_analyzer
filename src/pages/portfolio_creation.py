@@ -119,39 +119,40 @@ def create_portfolio_manually(data_fetcher, portfolio_manager):
             except Exception as e:
                 st.error(f"Ошибка при разборе тикеров: {e}")
 
-        # Создание портфеля по текстовому списку
+        # и добавляем проверку существования
         if st.button("Создать портфель") and portfolio_name and tickers_text.strip():
             try:
-                portfolio = portfolio_manager.create_portfolio_from_text(
-                    tickers_text, portfolio_name, portfolio_description
-                )
-                st.success(f"Портфель '{portfolio_name}' успешно создан с {len(portfolio['assets'])} активами!")
+                # Проверка на существование портфеля с таким именем
+                existing_portfolios = portfolio_manager.list_portfolios()
+                existing_names = [p['name'] for p in existing_portfolios]
 
-                # Добавьте отладочную печать
-                st.write(f"Путь сохранения: {portfolio_manager.storage_dir}")
-                st.write(f"Содержимое директории до сохранения: {os.listdir(portfolio_manager.storage_dir)}")
+                if portfolio_name in existing_names:
+                    st.warning(
+                        f"Портфель с именем '{portfolio_name}' уже существует. Выберите другое имя или перейдите в раздел 'Управление портфелями' для редактирования.")
+                else:
+                    portfolio = portfolio_manager.create_portfolio_from_text(
+                        tickers_text, portfolio_name, portfolio_description
+                    )
 
-                # Явно сохраняем портфель
-                saved_path = portfolio_manager.save_portfolio(portfolio)
+                    # Сохраняем портфель
+                    saved_path = portfolio_manager.save_portfolio(portfolio)
 
-                # Еще отладка после сохранения
-                st.write(f"Путь сохранения: {saved_path}")
-                st.write(f"Содержимое директории после сохранения: {os.listdir(portfolio_manager.storage_dir)}")
+                    st.success(f"Портфель '{portfolio_name}' успешно создан с {len(portfolio['assets'])} активами!")
 
-                # Показываем итоговую структуру
-                st.subheader("Структура созданного портфеля")
+                    # Показываем итоговую структуру
+                    st.subheader("Структура созданного портфеля")
 
-                weights_data = {
-                    'Тикер': [asset['ticker'] for asset in portfolio['assets']],
-                    'Вес': [asset['weight'] for asset in portfolio['assets']]
-                }
+                    weights_data = {
+                        'Тикер': [asset['ticker'] for asset in portfolio['assets']],
+                        'Вес': [asset['weight'] for asset in portfolio['assets']]
+                    }
 
-                fig = px.pie(
-                    values=[asset['weight'] for asset in portfolio['assets']],
-                    names=[asset['ticker'] for asset in portfolio['assets']],
-                    title="Распределение активов"
-                )
-                st.plotly_chart(fig, use_container_width=True)
+                    fig = px.pie(
+                        values=[asset['weight'] for asset in portfolio['assets']],
+                        names=[asset['ticker'] for asset in portfolio['assets']],
+                        title="Распределение активов"
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
             except Exception as e:
                 st.error(f"Ошибка создания портфеля: {e}")
 
