@@ -318,7 +318,7 @@ class PortfolioAnalytics:
 
         # Calculate alpha (annualized)
         alpha = (returns.mean() - period_risk_free - beta * (
-                    benchmark_returns.mean() - period_risk_free)) * periods_per_year
+                benchmark_returns.mean() - period_risk_free)) * periods_per_year
         return alpha
 
     @staticmethod
@@ -398,6 +398,13 @@ class PortfolioAnalytics:
         metrics['max_drawdown'] = PortfolioAnalytics.calculate_max_drawdown(returns)
         metrics['calmar_ratio'] = PortfolioAnalytics.calculate_calmar_ratio(returns, periods_per_year)
 
+        # альфа, бета, информационный коэффициент
+        if not benchmark_returns.empty:
+            metrics['beta'] = PortfolioAnalytics.calculate_beta(returns, benchmark_returns)
+        metrics['alpha'] = PortfolioAnalytics.calculate_alpha(returns, benchmark_returns,
+                                                              risk_free_rate, periods_per_year)
+        metrics['information_ratio'] = PortfolioAnalytics.calculate_information_ratio(returns, benchmark_returns)
+
         # Дополнительные метрики риска
         metrics['var_95'] = PortfolioAnalytics.calculate_var(returns, 0.95)
         metrics['cvar_95'] = PortfolioAnalytics.calculate_cvar(returns, 0.95)
@@ -431,7 +438,7 @@ class PortfolioAnalytics:
                 aligned_benchmark = benchmark_returns.loc[common_index]
 
                 # Базовые метрики бенчмарка
-                metrics['benchmark_total_return'] = (1 + aligned_benchmark).prod() - 1
+                metrics['benchmark_return'] = (1 + aligned_benchmark).prod() - 1
                 metrics['benchmark_annualized_return'] = PortfolioAnalytics.calculate_annualized_return(
                     aligned_benchmark, periods_per_year)
                 metrics['benchmark_volatility'] = PortfolioAnalytics.calculate_volatility(
@@ -446,13 +453,13 @@ class PortfolioAnalytics:
                 metrics['benchmark_calmar_ratio'] = PortfolioAnalytics.calculate_calmar_ratio(
                     aligned_benchmark, periods_per_year)
 
+                # Добавляем метрики результативности для бенчмарка
+                benchmark_win_metrics = PortfolioAnalytics.calculate_win_metrics(aligned_benchmark)
+                metrics.update({f'benchmark_{k}': v for k, v in benchmark_win_metrics.items()})
+
                 # Дополнительные метрики риска бенчмарка
                 metrics['benchmark_var_95'] = PortfolioAnalytics.calculate_var(aligned_benchmark, 0.95)
                 metrics['benchmark_cvar_95'] = PortfolioAnalytics.calculate_cvar(aligned_benchmark, 0.95)
-
-                # Information Ratio
-                metrics['information_ratio'] = PortfolioAnalytics.calculate_information_ratio(
-                    aligned_returns, aligned_benchmark, periods_per_year)
 
                 # Capture Ratios
                 capture_ratios = PortfolioAnalytics.calculate_capture_ratios(aligned_returns, aligned_benchmark)
@@ -552,29 +559,40 @@ class PortfolioAnalytics:
     def calculate_win_metrics(returns: pd.Series) -> Dict[str, float]:
         """
         Рассчитывает метрики результативности: Win Rate, Payoff Ratio и т.д.
+
+        Args:
+            returns: Серия доходностей
+
+        Returns:
+            Словарь с метриками результативности
         """
-        if returns.empty:
-            return {'win_rate': 0.0, 'payoff_ratio': 0.0, 'profit_factor': 0.0}
+        if returns.empty or len(returns) < 2:
+            return {
+                'win_rate': 0.0,
+                'payoff_ratio': 0.0,
+                'profit_factor': 0.0
+            }
 
         # Считаем положительные и отрицательные торговые дни
-        wins = (returns > 0).sum()
-        losses = (returns < 0).sum()
+        wins = returns[returns > 0]
+        losses = returns[returns < 0]
 
         # Win Rate
-        win_rate = wins / (wins + losses) if (wins + losses) > 0 else 0.0
+        total_trades = len(wins) + len(losses)
+        win_rate = len(wins) / total_trades if total_trades > 0 else 0.0
 
         # Payoff Ratio (средний выигрыш / средний проигрыш)
-        avg_win = returns[returns > 0].mean() if wins > 0 else 0.0
-        avg_loss = abs(returns[returns < 0].mean()) if losses > 0 else 0.0
+        avg_win = wins.mean() if len(wins) > 0 else 0.0
+        avg_loss = abs(losses.mean()) if len(losses) > 0 else 0.0
         payoff_ratio = avg_win / avg_loss if avg_loss > 0 else 0.0
 
         # Profit Factor (сумма выигрышей / сумма проигрышей)
-        total_wins = returns[returns > 0].sum()
-        total_losses = abs(returns[returns < 0].sum())
+        total_wins = wins.sum()
+        total_losses = abs(losses.sum())
         profit_factor = total_wins / total_losses if total_losses > 0 else 0.0
 
         return {
-            'win_rate': win_rate,
+            'win_rate': win_rate,  # В процентах
             'payoff_ratio': payoff_ratio,
             'profit_factor': profit_factor
         }

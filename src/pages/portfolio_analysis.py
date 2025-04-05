@@ -23,11 +23,32 @@ import src.config as config
 from src.utils.historical_context import historical_crisis_context, display_historical_context
 from src.utils.advanced_visualizations import create_stress_impact_heatmap, create_interactive_stress_impact_chart, create_risk_tree_visualization
 
-# Добавьте эту функцию после импортов
-def is_higher_better(metric_name):
-    """Определяет, является ли большее значение метрики лучшим показателем"""
-    lower_is_better = ['volatility', 'max_drawdown', 'var_95', 'cvar_95', 'down_capture']
-    return metric_name.lower() not in lower_is_better
+
+def get_delta_color(metric_name: str, portfolio_value: float, benchmark_value: float) -> str:
+    """
+    Определяет цвет изменения (дельты) в зависимости от направления и типа метрики.
+
+    Возвращает:
+        "normal" — стрелка вверх (зелёный цвет) — метрика лучше, чем бенчмарк.
+        "inverse" — стрелка вниз (красный цвет) — метрика хуже, чем бенчмарк.
+    """
+    difference = portfolio_value - benchmark_value
+
+    lower_is_better = ['Волатильность', 'Макс. просадка', 'VAR (95%)', 'CVAR (95%)', 'Нисходящий захват']
+
+    if metric_name in lower_is_better:
+        # Если разница положительная (портфель хуже), возвращаем "inverse" (красный, вниз)
+        if difference > 0:
+            return "inverse"  # Красный цвет, стрелка вниз
+        else:
+            return "normal"  # Зелёный цвет, стрелка вверх
+    else:
+        # Для других метрик, где больше — лучше
+        if difference > 0:
+            return "normal"  # Зелёный цвет, стрелка вверх
+        else:
+            return "inverse"  # Красный цвет, стрелка вниз
+
 
 # Добавьте эту функцию для стилизации таблиц
 def style_dataframe(df, precision_dict=None):
@@ -253,16 +274,17 @@ def run(data_fetcher, portfolio_manager):
         with col1:
             metric_name = "Общая доходность"
             value = portfolio_metrics.get('total_return', 0) * 100
-            benchmark_value = portfolio_metrics.get('benchmark_return', 0) * 100 if 'benchmark_return' in portfolio_metrics else None
+            benchmark_value = portfolio_metrics.get('benchmark_return',
+                                                    0) * 100 if 'benchmark_return' in portfolio_metrics else None
+
             if benchmark_value is not None:
                 difference = value - benchmark_value
-                is_better = difference > 0 if is_higher_better(metric_name) else difference < 0
-                delta_color = "normal" if is_better else "inverse"
+                delta_color = get_delta_color(metric_name, value, benchmark_value)
 
                 st.metric(
                     metric_name,
                     f"{value:.2f}%",
-                    f"{difference:.2f}%",
+                    f"{difference:+.2f}%",
                     delta_color=delta_color
                 )
             else:
@@ -276,13 +298,12 @@ def run(data_fetcher, portfolio_manager):
 
             if benchmark_value is not None:
                 difference = value - benchmark_value
-                is_better = difference > 0 if is_higher_better(metric_name) else difference < 0
-                delta_color = "normal" if is_better else "inverse"
+                delta_color = get_delta_color(metric_name, value, benchmark_value)
 
                 st.metric(
                     metric_name,
                     f"{value:.2f}%",
-                    f"{difference:.2f}%",
+                    f"{difference:+.2f}%",
                     delta_color=delta_color
                 )
             else:
@@ -296,8 +317,7 @@ def run(data_fetcher, portfolio_manager):
 
             if benchmark_value is not None:
                 difference = value - benchmark_value
-                is_better = difference < 0  # Для волатильности ниже лучше
-                delta_color = "normal" if is_better else "inverse"
+                delta_color = get_delta_color(metric_name, value, benchmark_value)
 
                 st.metric(
                     metric_name,
@@ -316,34 +336,33 @@ def run(data_fetcher, portfolio_manager):
 
             if benchmark_value is not None:
                 difference = value - benchmark_value
-                is_better = difference > 0  # Для Шарпа выше лучше
-                delta_color = "normal" if is_better else "inverse"
-
-                st.metric(
-                    metric_name,
-                    f"{value:.2f}",
-                    f"{difference:.2f}",
-                    delta_color=delta_color
-                )
-            else:
-                st.metric(metric_name, f"{value:.2f}")
-
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            metric_name = "Макс. просадка"
-            value = portfolio_metrics.get('max_drawdown', 0) * 100
-            benchmark_value = portfolio_metrics.get('benchmark_max_drawdown',
-                                                    0) * 100 if 'benchmark_max_drawdown' in portfolio_metrics else None
-
-            if benchmark_value is not None:
-                difference = value - benchmark_value
-                is_better = difference < 0  # Для просадки меньше лучше
-                delta_color = "normal" if is_better else "inverse"
+                delta_color = get_delta_color(metric_name, value, benchmark_value)
 
                 st.metric(
                     metric_name,
                     f"{value:.2f}%",
-                    f"{difference:.2f}%",
+                    f"{difference:+.2f}%",
+                    delta_color=delta_color
+                )
+            else:
+                st.metric(metric_name, f"{value:.2f}%")
+
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            metric_name = "Макс. просадка"
+            value = -abs(portfolio_metrics.get('max_drawdown', 0)) * 100
+            benchmark_value = -abs(portfolio_metrics.get('benchmark_max_drawdown', 0)) * 100 if 'benchmark_max_drawdown' in portfolio_metrics else None
+
+
+            if benchmark_value is not None:
+                difference = value - benchmark_value
+                delta_color = get_delta_color(metric_name, value, benchmark_value)
+
+                # Теперь корректно отображаем разницу и цвет
+                st.metric(
+                    metric_name,
+                    f"{value:.2f}%",  # Отображаем значение
+                    f"{difference:.2f}%",  # Выводим разницу без знака "+"
                     delta_color=delta_color
                 )
             else:
@@ -357,17 +376,16 @@ def run(data_fetcher, portfolio_manager):
 
             if benchmark_value is not None:
                 difference = value - benchmark_value
-                is_better = difference > 0
-                delta_color = "normal" if is_better else "inverse"
+                delta_color = get_delta_color(metric_name, value, benchmark_value)
 
                 st.metric(
                     metric_name,
-                    f"{value:.2f}",
-                    f"{difference:.2f}",
+                    f"{value:.2f}%",
+                    f"{difference:+.2f}%",
                     delta_color=delta_color
                 )
             else:
-                st.metric(metric_name, f"{value:.2f}")
+                st.metric(metric_name, f"{value:.2f}%")
 
         with col3:
             metric_name = "Бета"
@@ -384,8 +402,7 @@ def run(data_fetcher, portfolio_manager):
 
             st.metric(
                 metric_name,
-                f"{value:.2f}%",
-                f"{value:.2f}%" if abs(value) > 0.01 else "0.00%"
+                f"{value:.2f}"
             )
 
         # Комбинированный график производительности
@@ -774,11 +791,7 @@ def run(data_fetcher, portfolio_manager):
                     }).applymap(highlight_diff, subset=['Разница (%)'])
 
                     st.dataframe(
-                        style_dataframe(periods_df, {
-                            'Портфель (%)': '{:.2f}%',
-                            'Бенчмарк (%)': '{:.2f}%',
-                            'Разница (%)': '{:.2f}%'
-                        }),
+                        styled_df,
                         use_container_width=True,
                         height=min(35 * (len(periods_df) + 1), 300)
                     )
@@ -808,7 +821,10 @@ def run(data_fetcher, portfolio_manager):
                             worst_periods[col] = worst_periods[col].apply(lambda x: f"{x * 100:.2f}%")
 
                         st.dataframe(
-                            style_dataframe(worst_periods),
+                            worst_periods.style.set_properties(**{
+                                'text-align': 'center',
+                                'vertical-align': 'middle'
+                            }),
                             use_container_width=True,
                             height=min(35 * (len(worst_periods) + 1), 300)
                         )
@@ -832,38 +848,79 @@ def run(data_fetcher, portfolio_manager):
             col1, col2, col3, col4 = st.columns(4)
 
             with col1:
-                st.metric(
-                    "Волатильность (годовая)",
-                    f"{portfolio_metrics.get('volatility', 0) * 100:.2f}%",
-                    f"{(portfolio_metrics.get('benchmark_volatility', 0) - portfolio_metrics.get('volatility', 0)) * 100:.2f}%"
-                    if 'benchmark_volatility' in portfolio_metrics else None,
-                    delta_color="inverse"
-                )
+                metric_name = "Волатильность"
+                value = portfolio_metrics.get('volatility', 0) * 100
+                benchmark_value = portfolio_metrics.get('benchmark_volatility',
+                                                        0) * 100 if 'benchmark_volatility' in portfolio_metrics else None
+
+                if benchmark_value is not None:
+                    difference = value - benchmark_value
+                    delta_color = get_delta_color(metric_name, value, benchmark_value)
+
+                    st.metric(
+                        metric_name,
+                        f"{value:.2f}%",
+                        f"{difference:.2f}%",
+                        delta_color=delta_color
+                    )
+                else:
+                    st.metric(metric_name, f"{value:.2f}%")
 
             with col2:
-                st.metric(
-                    "Максимальная просадка",
-                    f"{portfolio_metrics.get('max_drawdown', 0) * 100:.2f}%",
-                    f"{(portfolio_metrics.get('benchmark_max_drawdown', 0) - portfolio_metrics.get('max_drawdown', 0)) * 100:.2f}%"
-                    if 'benchmark_max_drawdown' in portfolio_metrics else None,
-                    delta_color="inverse"
-                )
+                metric_name = "Макс. просадка"
+                value = -abs(portfolio_metrics.get('max_drawdown', 0)) * 100
+                benchmark_value = -abs(portfolio_metrics.get('benchmark_max_drawdown', 0)) * 100 if 'benchmark_max_drawdown' in portfolio_metrics else None
+
+                if benchmark_value is not None:
+                    difference = value - benchmark_value
+                    delta_color = get_delta_color(metric_name, value, benchmark_value)
+
+                    st.metric(
+                        metric_name,
+                        f"{value:.2f}%",
+                        f"{difference:.2f}%",
+                        delta_color=delta_color
+                    )
+                else:
+                    st.metric(metric_name, f"{value:.2f}%")
 
             with col3:
-                st.metric(
-                    "Коэффициент Сортино",
-                    f"{portfolio_metrics.get('sortino_ratio', 0):.2f}",
-                    f"{portfolio_metrics.get('sortino_ratio', 0) - portfolio_metrics.get('benchmark_sortino_ratio', 0):.2f}"
-                    if 'benchmark_sortino_ratio' in portfolio_metrics else None
-                )
+                metric_name = "Коэффициент Сортино"
+                value = portfolio_metrics.get('sortino_ratio', 0)
+                benchmark_value = portfolio_metrics.get('benchmark_sortino_ratio',
+                                                        0) if 'benchmark_sortino_ratio' in portfolio_metrics else None
+
+                if benchmark_value is not None:
+                    difference = value - benchmark_value
+                    delta_color = get_delta_color(metric_name, value, benchmark_value)
+
+                    st.metric(
+                        metric_name,
+                        f"{value:.2f}%",
+                        f"{difference:+.2f}%",
+                        delta_color=delta_color
+                    )
+                else:
+                    st.metric(metric_name, f"{value:.2f}%")
 
             with col4:
-                st.metric(
-                    "Коэффициент Кальмара",
-                    f"{portfolio_metrics.get('calmar_ratio', 0):.2f}",
-                    f"{portfolio_metrics.get('calmar_ratio', 0) - portfolio_metrics.get('benchmark_calmar_ratio', 0):.2f}"
-                    if 'benchmark_calmar_ratio' in portfolio_metrics else None
-                )
+                metric_name = "Коэффициент Кальмара"
+                value = portfolio_metrics.get('calmar_ratio', 0)
+                benchmark_value = portfolio_metrics.get('bbenchmark_calmar_ratio',
+                                                        0) if 'benchmark_calmar_ratio' in portfolio_metrics else None
+
+                if benchmark_value is not None:
+                    difference = value - benchmark_value
+                    delta_color = get_delta_color(metric_name, value, benchmark_value)
+
+                    st.metric(
+                        metric_name,
+                        f"{value:.2f}%",
+                        f"{difference:+.2f}%",
+                        delta_color=delta_color
+                    )
+                else:
+                    st.metric(metric_name, f"{value:.2f}%")
 
             col1, col2, col3, col4 = st.columns(4)
 
@@ -875,13 +932,12 @@ def run(data_fetcher, portfolio_manager):
 
                 if benchmark_value is not None:
                     difference = value - benchmark_value
-                    is_better = difference < 0
-                    delta_color = "normal" if is_better else "inverse"
+                    delta_color = get_delta_color(metric_name, value, benchmark_value)
 
                     st.metric(
                         metric_name,
                         f"{value:.2f}%",
-                        f"{difference:.2f}%",
+                        f"{difference:+.2f}%",
                         delta_color=delta_color
                     )
                 else:
@@ -895,13 +951,12 @@ def run(data_fetcher, portfolio_manager):
 
                 if benchmark_value is not None:
                     difference = value - benchmark_value
-                    is_better = difference < 0
-                    delta_color = "normal" if is_better else "inverse"
+                    delta_color = get_delta_color(metric_name, value, benchmark_value)
 
                     st.metric(
                         metric_name,
                         f"{value:.2f}%",
-                        f"{difference:.2f}%",
+                        f"{difference:+.2f}%",
                         delta_color=delta_color
                     )
                 else:
@@ -1030,7 +1085,7 @@ def run(data_fetcher, portfolio_manager):
 
             if not drawdown_analysis.empty:
                 # Сортируем по глубине (сначала самые большие просадки) и берем топ-5
-                top_drawdowns = drawdown_analysis.sort_values('depth', ascending=True).head(5)
+                top_drawdowns = drawdown_analysis.sort_values(['depth', 'start_date'], ascending=[True, False]).head(5)
 
                 # Форматируем для отображения
                 display_drawdowns = pd.DataFrame({
@@ -1044,11 +1099,15 @@ def run(data_fetcher, portfolio_manager):
                     'Восстановление (дней)': top_drawdowns['recovery']
                 })
 
-                st.dataframe(display_drawdowns.style.format({
-                    'Глубина (%)': '{:.2f}%',
-                    'Длительность (дней)': '{:.0f}',
-                    'Восстановление (дней)': '{:.0f}'
-                }), use_container_width=True)
+                st.dataframe(
+                    style_dataframe(display_drawdowns, {
+                        'Глубина (%)': '{:.2f}%',
+                        'Длительность (дней)': '{:.0f}',
+                        'Восстановление (дней)': '{:.0f}'
+                    }),
+                    use_container_width=True,
+                    height=min(35 * (len(display_drawdowns) + 1), 300)
+                )
 
             with risk_tabs[2]:
                 st.subheader("Value at Risk (VaR) и Conditional VaR (CVaR)")
@@ -1231,7 +1290,7 @@ def run(data_fetcher, portfolio_manager):
             for asset in portfolio_data['assets']:
                 asset_row = {
                     'Тикер': asset['ticker'],
-                    'Вес (%)': f"{asset['weight'] * 100:.2f}%"
+                    'Вес (%)': asset['weight'] * 100  # Сохраняем как число для правильного форматирования
                 }
 
                 # Добавляем доступную информацию
@@ -1243,12 +1302,24 @@ def run(data_fetcher, portfolio_manager):
                     asset_row['Текущая цена'] = asset['current_price']
 
                 if 'price_change_pct' in asset:
-                    asset_row['Изменение (%)'] = f"{asset['price_change_pct']:.2f}%"
+                    asset_row['Изменение (%)'] = asset['price_change_pct']  # Сохраняем как число
 
                 assets_data.append(asset_row)
 
             assets_df = pd.DataFrame(assets_data)
-            st.dataframe(assets_df, use_container_width=True)
+
+            # Определяем словарь форматирования
+            format_dict = {
+                'Вес (%)': '{:.2f}%',
+                'Текущая цена': '{:.2f}',
+                'Изменение (%)': '{:.2f}%'
+            }
+
+            st.dataframe(
+                style_dataframe(assets_df, format_dict),
+                use_container_width=True,
+                height=min(35 * (len(assets_df) + 1), 400)
+            )
 
             if len(portfolio_data['assets']) > 10:
                 st.warning(
@@ -1446,13 +1517,12 @@ def run(data_fetcher, portfolio_manager):
 
                     if benchmark_value is not None:
                         difference = value - benchmark_value
-                        is_better = difference > 0 if is_higher_better(metric_name) else difference < 0
-                        delta_color = "normal" if is_better else "inverse"
+                        delta_color = get_delta_color(metric_name, value, benchmark_value)
 
                         st.metric(
                             metric_name,
                             f"{value:.2f}%",
-                            f"{difference:.2f}%",
+                            f"{difference:+.2f}%",
                             delta_color=delta_color
                         )
                     else:
@@ -1466,13 +1536,12 @@ def run(data_fetcher, portfolio_manager):
 
                     if benchmark_value is not None:
                         difference = value - benchmark_value
-                        is_better = difference > 0 if is_higher_better(metric_name) else difference < 0
-                        delta_color = "normal" if is_better else "inverse"
+                        delta_color = get_delta_color(metric_name, value, benchmark_value)
 
                         st.metric(
                             metric_name,
                             f"{value:.2f}%",
-                            f"{difference:.2f}%",
+                            f"{difference:+.2f}%",
                             delta_color=delta_color
                         )
                     else:
@@ -1486,13 +1555,12 @@ def run(data_fetcher, portfolio_manager):
 
                     if benchmark_value is not None:
                         difference = value - benchmark_value
-                        is_better = difference < 0  # Для волатильности ниже лучше
-                        delta_color = "normal" if is_better else "inverse"
+                        delta_color = get_delta_color(metric_name, value, benchmark_value)
 
                         st.metric(
                             metric_name,
                             f"{value:.2f}%",
-                            f"{difference:.2f}%",
+                            f"{difference:+.2f}%",
                             delta_color=delta_color
                         )
                     else:
@@ -1506,17 +1574,16 @@ def run(data_fetcher, portfolio_manager):
 
                     if benchmark_value is not None:
                         difference = value - benchmark_value
-                        is_better = difference > 0  # Для Шарпа выше лучше
-                        delta_color = "normal" if is_better else "inverse"
+                        delta_color = get_delta_color(metric_name, value, benchmark_value)
 
                         st.metric(
                             metric_name,
-                            f"{value:.2f}",
-                            f"{difference:.2f}",
+                            f"{value:.2f}%",
+                            f"{difference:+.2f}%",
                             delta_color=delta_color
                         )
                     else:
-                        st.metric(metric_name, f"{value:.2f}")
+                        st.metric(metric_name, f"{value:.2f}%")
 
                 # Получаем данные объема для выбранного актива
                 with st.spinner('Загрузка данных объема...'):
@@ -1743,13 +1810,13 @@ def run(data_fetcher, portfolio_manager):
                 styled_corr_df = corr_df.style.format({
                     'Корреляция с бенчмарком': '{:.2f}',
                     'Бета': '{:.2f}'
-                }).applymap(color_correlation, subset=['Корреляция с бенчмарком'])
+                }).applymap(color_correlation, subset=['Корреляция с бенчмарком']).set_properties(**{
+                    'text-align': 'center',
+                    'vertical-align': 'middle'
+                })
 
                 st.dataframe(
-                    style_dataframe(corr_df, {
-                        'Корреляция с бенчмарком': '{:.2f}',
-                        'Бета': '{:.2f}'
-                    }),
+                    styled_corr_df,
                     use_container_width=True,
                     height=min(35 * (len(corr_df) + 1), 350)
                 )
@@ -2102,12 +2169,16 @@ def run(data_fetcher, portfolio_manager):
                     position_df = position_df.sort_values('Потери ($)', ascending=True)
 
                     st.subheader("Влияние на отдельные активы")
-                    st.dataframe(position_df.style.format({
-                        'Вес (%)': '{:.2f}%',
-                        'Изменение (%)': '{:.2f}%',
-                        'Стоимость позиции ($)': '${:.2f}',
-                        'Потери ($)': '${:.2f}'
-                    }), use_container_width=True)
+                    st.dataframe(
+                        style_dataframe(position_df, {
+                            'Вес (%)': '{:.2f}%',
+                            'Изменение (%)': '{:.2f}%',
+                            'Стоимость позиции ($)': '${:.2f}',
+                            'Потери ($)': '${:.2f}'
+                        }),
+                        use_container_width=True,
+                        height=min(35 * (len(position_df) + 1), 350)
+                    )
 
                     # Визуализация потерь по активам
                     fig_pos_loss = px.bar(
@@ -4004,8 +4075,6 @@ def run(data_fetcher, portfolio_manager):
             with advanced_tabs[3]:
                 st.subheader("Множественные метрики эффективности")
 
-                # Создаем таблицу с различными метриками для портфеля и бенчмарка
-                # Создаем таблицу с различными метриками для портфеля и бенчмарка
                 metrics_data = []  # Создаем список вместо DataFrame
 
                 # Добавляем расширенные метрики доходности
@@ -4116,6 +4185,7 @@ def run(data_fetcher, portfolio_manager):
                     'Бенчмарк': 0.0,
                     'Разница': 0.0
                 })
+
 
                 # Создаем DataFrame из списка данных
                 metrics_df = pd.DataFrame(metrics_data)
