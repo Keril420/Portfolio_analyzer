@@ -98,8 +98,8 @@ PythonProject/
 
 1. Clone the repository:
    ```
-   git clone https://github.com/Keril420/Portfolio_analyzer.git
-   cd Portfolio_analyzer
+   git clone https://github.com/imnotkeril/Investment-Portfolio-Management-System.git
+   cd Investment-Portfolio-Management-System
    ```
 
 2. Create a virtual environment:
