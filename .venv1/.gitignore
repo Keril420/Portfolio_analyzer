@@ -1,0 +1,21 @@
+# IDE
+.idea/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+
+# Data / Cache
+cache/
+data/
+*.log
+*.tmp
+
+# Streamlit
+.streamlit/
+
+# OS files
+.DS_Store
+Thumbs.db

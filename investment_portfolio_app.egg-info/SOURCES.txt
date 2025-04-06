@@ -13,12 +13,11 @@ src/pages/portfolio_analysis.py
 src/pages/portfolio_creation.py
 src/pages/portfolio_optimization.py
 src/utils/__init__.py
+src/utils/advanced_visualizations.py
 src/utils/calculations.py
 src/utils/data_fetcher.py
+src/utils/historical_context.py
 src/utils/optimization.py
 src/utils/risk_management.py
+src/utils/scenario_chaining.py
 src/utils/visualization.py
-tests/test_calculations.py
-tests/test_data_fetcher.py
-tests/test_optimization.py
-tests/test_risk_management.py
