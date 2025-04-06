@@ -169,113 +169,164 @@ def create_interactive_stress_impact_chart(stress_results, portfolio_value):
 
 
 def create_risk_tree_visualization(portfolio_data, risk_factors=None):
-    """Создает иерархическую визуализацию факторов риска в виде дерева"""
+    """Создает иерархическую визуализацию факторов риска портфеля в виде дерева"""
+    import plotly.graph_objects as go
+    import pandas as pd
+    import plotly.express as px
+    import logging
 
-    # Если risk_factors не передан, создаем базовую структуру
-    if risk_factors is None:
-        risk_factors = {}
 
-    # Организуем факторы риска по иерархии
-    risk_hierarchy = {
-        "Портфель": {
-            "Рыночный риск": {
-                "Акции": {},
-                "Облигации": {},
-                "Сырьё": {}
-            },
-            "Секторный риск": {},
-            "Специфический риск": {},
-            "Макроэкономический риск": {
-                "Инфляция": {},
-                "Процентные ставки": {},
-                "Экономический рост": {}
-            }
-        }
-    }
+    # Настраиваем логирование для диагностики
+    logger = logging.getLogger('risk_tree')
 
-    # Заполняем структуру риска данными из портфеля
-    sectors = {}
-    for asset in portfolio_data['assets']:
-        ticker = asset['ticker']
-        weight = asset['weight']
-
-        # Определяем тип актива
-        asset_type = "Акции"  # По умолчанию
-        if 'asset_class' in asset:
-            if asset['asset_class'] in ['Bond', 'Bonds', 'Fixed Income']:
-                asset_type = "Облигации"
-            elif asset['asset_class'] in ['Commodity', 'Commodities']:
-                asset_type = "Сырьё"
-
-        # Добавляем в дерево
-        if ticker not in risk_hierarchy["Портфель"]["Специфический риск"]:
-            risk_hierarchy["Портфель"]["Специфический риск"][ticker] = {"weight": weight}
-
-        # Группируем по секторам
-        if 'sector' in asset and asset['sector'] != 'N/A':
-            sector = asset['sector']
-            if sector not in risk_hierarchy["Портфель"]["Секторный риск"]:
-                risk_hierarchy["Портфель"]["Секторный риск"][sector] = {}
-
-            if ticker not in risk_hierarchy["Портфель"]["Секторный риск"][sector]:
-                risk_hierarchy["Портфель"]["Секторный риск"][sector][ticker] = {"weight": weight}
-
-        # Группируем по типам активов
-        if ticker not in risk_hierarchy["Портфель"]["Рыночный риск"][asset_type]:
-            risk_hierarchy["Портфель"]["Рыночный риск"][asset_type][ticker] = {"weight": weight}
-
-    # Преобразуем иерархическую структуру в формат для визуализации
-    def build_sunburst_data(hierarchy, parent="", level=0):
-        data = []
-
-        for key, value in hierarchy.items():
-            if key == "weight":
-                continue
-
-            # Для листьев дерева (активов)
-            if isinstance(value, dict) and "weight" in value:
-                data.append({
-                    "id": key,
-                    "parent": parent,
-                    "value": value["weight"] * 100,
-                    "level": level
-                })
-            # Для внутренних узлов дерева (категорий риска)
-            else:
-                # Формирование ID узла
-                node_id = key if parent == "" else f"{parent}-{key}"
-
-                data.append({
-                    "id": node_id,
-                    "parent": parent,
-                    "value": None,  # Значение будет рассчитано автоматически
-                    "level": level
-                })
-
-                # Рекурсивный обход дочерних узлов
-                child_data = build_sunburst_data(value, node_id, level + 1)
-                data.extend(child_data)
-
-        return data
-
-    # Создаем данные для визуализации
-    sunburst_data = build_sunburst_data(risk_hierarchy)
-    sunburst_df = pd.DataFrame(sunburst_data)
-
-    # Создаем диаграмму иерархии рисков
-    if not sunburst_df.empty and set(['id', 'parent', 'value']).issubset(sunburst_df.columns):
-        fig = px.sunburst(
-            sunburst_df,
-            ids="id",
-            parents="parent",
-            values="value",
-            color="level",
-            color_continuous_scale="Blues",
-            title="Иерархия факторов риска портфеля"
-        )
+    # Выводим диагностическую информацию
+    if portfolio_data is None or 'assets' not in portfolio_data:
+        logger.info("Отсутствует портфель или структура активов")
     else:
-        # Создаем пустой рисунок, если данных недостаточно
+        logger.info(f"Получен портфель с {len(portfolio_data['assets'])} активами")
+
+    # Проверяем наличие корректной структуры данных портфеля
+    if portfolio_data is None or 'assets' not in portfolio_data or not portfolio_data['assets']:
+        # Создаем фигуру с информационным сообщением
         fig = go.Figure()
-        fig.update_layout(title='Недостаточно данных для дерева рисков')
+        fig.update_layout(
+            title='Недостаточно данных для построения иерархии рисков',
+            annotations=[dict(
+                text='Добавьте активы в портфель для анализа рисков',
+                showarrow=False,
+                xref="paper", yref="paper",
+                x=0.5, y=0.5
+            )]
+        )
+        return fig
+
+    # Создаем более простую структуру данных для визуализации
+    data = []
+
+    # Добавляем корневой узел
+    data.append(dict(
+        id="Портфель",
+        parent="",
+        name="Портфель"
+    ))
+
+    # Добавляем основные категории риска
+    risk_categories = ["Рыночный риск", "Секторный риск", "Специфический риск"]
+    for category in risk_categories:
+        data.append(dict(
+            id=category,
+            parent="Портфель",
+            name=category
+        ))
+
+    # Создаем группы для типов активов
+    asset_types = {"Акции": [], "Облигации": [], "Сырье": [], "Валюты": []}
+    sectors = {}
+
+    # Проходим по всем активам
+    total_weight = 0.0
+    for asset in portfolio_data['assets']:
+        weight = asset.get('weight', 0.0)
+        total_weight += weight
+        ticker = asset['ticker']
+
+        # Определяем тип актива (класс)
+        asset_type = "Акции"  # По умолчанию считаем, что это акции
+        if 'asset_class' in asset:
+            if asset['asset_class'] in ['Bond', 'Bonds', 'Fixed Income', 'Облигации']:
+                asset_type = "Облигации"
+            elif asset['asset_class'] in ['Commodity', 'Commodities', 'Сырье']:
+                asset_type = "Сырье"
+            elif asset['asset_class'] in ['Currency', 'Currencies', 'Валюты']:
+                asset_type = "Валюты"
+
+        # Добавляем актив в его тип
+        asset_types[asset_type].append((ticker, weight))
+
+        # Добавляем в специфический риск
+        data.append(dict(
+            id=f"Специфический риск|{ticker}",
+            parent="Специфический риск",
+            name=ticker,
+            value=weight * 100  # Умножаем на 100 для наглядности
+        ))
+
+        # Группируем по сектору, если есть информация
+        sector = asset.get('sector', 'Прочее')
+        if sector == 'N/A':
+            sector = 'Прочее'
+
+        if sector not in sectors:
+            sectors[sector] = []
+            # Добавляем сектор
+            data.append(dict(
+                id=f"Секторный риск|{sector}",
+                parent="Секторный риск",
+                name=sector
+            ))
+
+        sectors[sector].append((ticker, weight))
+
+        # Добавляем актив в его сектор
+        data.append(dict(
+            id=f"Секторный риск|{sector}|{ticker}",
+            parent=f"Секторный риск|{sector}",
+            name=ticker,
+            value=weight * 100
+        ))
+
+    # Добавляем типы активов в рыночный риск
+    for asset_type, assets in asset_types.items():
+        if assets:  # Если есть активы этого типа
+            # Добавляем тип актива
+            data.append(dict(
+                id=f"Рыночный риск|{asset_type}",
+                parent="Рыночный риск",
+                name=asset_type
+            ))
+
+            # Добавляем активы этого типа
+            for ticker, weight in assets:
+                data.append(dict(
+                    id=f"Рыночный риск|{asset_type}|{ticker}",
+                    parent=f"Рыночный риск|{asset_type}",
+                    name=ticker,
+                    value=weight * 100
+                ))
+
+    # Создаем DataFrame
+    df = pd.DataFrame(data)
+
+    # Создаем sunburst-диаграмму
+    try:
+        fig = px.sunburst(
+            df,
+            ids='id',
+            names='name',
+            parents='parent',
+            values='value',
+            title='Иерархия факторов риска портфеля',
+            color_discrete_sequence=px.colors.qualitative.Set3
+        )
+
+        # Настраиваем внешний вид
+        fig.update_layout(
+            margin=dict(t=60, l=0, r=0, b=0),
+            height=500
+        )
+
+    except Exception as e:
+        logger.error(f"Ошибка при создании визуализации: {str(e)}")
+        # В случае ошибки создаем информационную фигуру
+        fig = go.Figure()
+        fig.update_layout(
+            title='Ошибка при создании иерархии рисков',
+            annotations=[dict(
+                text=f'Не удалось создать визуализацию: {str(e)}',
+                showarrow=False,
+                xref="paper", yref="paper",
+                x=0.5, y=0.5
+            )]
+        )
 
     return fig

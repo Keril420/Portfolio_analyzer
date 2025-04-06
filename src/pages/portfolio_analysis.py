@@ -34,20 +34,14 @@ def get_delta_color(metric_name: str, portfolio_value: float, benchmark_value: f
     """
     difference = portfolio_value - benchmark_value
 
-    lower_is_better = ['Волатильность', 'Макс. просадка', 'VAR (95%)', 'CVAR (95%)', 'Нисходящий захват']
+    lower_is_better = ['Волатильность', 'VAR (95%)', 'CVAR (95%)', 'Нисходящий захват']
 
     if metric_name in lower_is_better:
-        # Если разница положительная (портфель хуже), возвращаем "inverse" (красный, вниз)
-        if difference > 0:
-            return "inverse"  # Красный цвет, стрелка вниз
-        else:
-            return "normal"  # Зелёный цвет, стрелка вверх
+        return "inverse"  # Красный цвет, стрелка вниз
+
     else:
-        # Для других метрик, где больше — лучше
-        if difference > 0:
-            return "normal"  # Зелёный цвет, стрелка вверх
-        else:
-            return "inverse"  # Красный цвет, стрелка вниз
+        return "normal"  # Зелёный цвет, стрелка вверх
+
 
 
 # Добавьте эту функцию для стилизации таблиц
@@ -362,7 +356,7 @@ def run(data_fetcher, portfolio_manager):
                 st.metric(
                     metric_name,
                     f"{value:.2f}%",  # Отображаем значение
-                    f"{difference:.2f}%",  # Выводим разницу без знака "+"
+                    f"{difference:+.2f}%",  # Выводим разницу без знака "+"
                     delta_color=delta_color
                 )
             else:
@@ -878,7 +872,7 @@ def run(data_fetcher, portfolio_manager):
                     st.metric(
                         metric_name,
                         f"{value:.2f}%",
-                        f"{difference:.2f}%",
+                        f"{difference:+.2f}%",
                         delta_color=delta_color
                     )
                 else:
@@ -979,7 +973,7 @@ def run(data_fetcher, portfolio_manager):
                 st.metric(
                     metric_name,
                     f"{value:.2f}",
-                    f"{1 - value:.2f}" if 'down_capture' in portfolio_metrics else None,
+                    f"{1 - value:+.2f}" if 'down_capture' in portfolio_metrics else None,
                     delta_color="inverse"
                 )
 
@@ -2053,10 +2047,6 @@ def run(data_fetcher, portfolio_manager):
     with tabs[5]:
         st.subheader("Стресс-тестирование")
 
-        # Создание визуализации дерева риска
-        risk_tree_fig = create_risk_tree_visualization(portfolio_data)
-        st.plotly_chart(risk_tree_fig, use_container_width=True)
-
         # Создаем подвкладки для разных видов стресс-тестов
         stress_tabs = st.tabs([
             "Исторические сценарии",
@@ -2241,7 +2231,6 @@ def run(data_fetcher, portfolio_manager):
 
                     st.plotly_chart(fig_stress, use_container_width=True)
 
-
                     # Сравниваем воздействие на уровне классов активов или секторов, если данные доступны
                     sectors = {}
                     for asset in portfolio_data['assets']:
@@ -2298,59 +2287,32 @@ def run(data_fetcher, portfolio_manager):
                         )
 
                         st.plotly_chart(fig_sector, use_container_width=True)
-                        # В src/pages/portfolio_analysis.py, обновляем вкладку стресс-тестирования
 
-                        with stress_tabs[0]:
+                    # Отображаем расширенную аналитику сразу без кнопки
+                    st.subheader("Расширенная визуализация стресс-теста")
 
-                            # Замените обе кнопки "Показать расширенный анализ" и "Показать расширенную аналитику" этим кодом
-                            if st.button("Показать расширенную аналитику", key="show_analytics"):
-                                # Отображение исторического контекста, если доступен
-                                if 'scenario' in stress_test_result and stress_test_result[
-                                    'scenario'] in historical_crisis_context:
-                                    st.subheader("Исторический контекст")
-                                    display_historical_context(stress_test_result['scenario'])
+                    # Отображение исторического контекста, если доступен
+                    if 'scenario' in stress_test_result and stress_test_result['scenario'] in historical_crisis_context:
+                        st.subheader("Исторический контекст")
+                        display_historical_context(stress_test_result['scenario'])
 
-                                # Улучшенные визуализации
-                                st.subheader("Расширенная визуализация стресс-теста")
+                    try:
+                        # Интерактивная диаграмма влияния
+                        interactive_chart = create_interactive_stress_impact_chart(
+                            {stress_test_result['scenario']: stress_test_result},
+                            portfolio_value
+                        )
+                        st.plotly_chart(interactive_chart, use_container_width=True)
 
-                                try:
-                                    # Интерактивная диаграмма влияния
-                                    interactive_chart = create_interactive_stress_impact_chart(
-                                        {stress_test_result['scenario']: stress_test_result},
-                                        portfolio_value
-                                    )
-                                    st.plotly_chart(interactive_chart, use_container_width=True)
-
-                                    # Тепловые карты влияния
-                                    fig_assets, fig_sectors = create_stress_impact_heatmap(
-                                        portfolio_data,
-                                        {stress_test_result['scenario']: stress_test_result}
-                                    )
-                                    st.plotly_chart(fig_assets, use_container_width=True)
-                                    st.plotly_chart(fig_sectors, use_container_width=True)
-                                except Exception as e:
-                                    st.error(f"Ошибка при создании визуализаций: {e}")
-
-                            # Улучшенные визуализации
-                            st.subheader("Расширенная визуализация стресс-теста")
-
-                            try:
-                                # Интерактивная диаграмма влияния
-                                interactive_chart = create_interactive_stress_impact_chart(
-                                    {stress_test_result['scenario']: stress_test_result},
-                                    portfolio_value
-                                )
-                                st.plotly_chart(interactive_chart, use_container_width=True)
-
-                                # Тепловые карты влияния
-                                fig_assets, fig_sectors = create_stress_impact_heatmap(
-                                    portfolio_data,
-                                    {stress_test_result['scenario']: stress_test_result}
-                                )
-                                st.plotly_chart(fig_assets, use_container_width=True)
-                                st.plotly_chart(fig_sectors, use_container_width=True)
-                            except Exception as e:
-                                st.error(f"Ошибка при создании визуализаций: {e}")
+                        # Тепловые карты влияния
+                        fig_assets, fig_sectors = create_stress_impact_heatmap(
+                            portfolio_data,
+                            {stress_test_result['scenario']: stress_test_result}
+                        )
+                        st.plotly_chart(fig_assets, use_container_width=True)
+                        st.plotly_chart(fig_sectors, use_container_width=True)
+                    except Exception as e:
+                        st.error(f"Ошибка при создании визуализаций: {e}")
 
         with stress_tabs[1]:
             st.subheader("Пользовательский стресс-тест")
