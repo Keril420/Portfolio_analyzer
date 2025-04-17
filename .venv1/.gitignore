@@ -1,31 +1,25 @@
-# IDE
+
 .idea/
 
-# Python
 __pycache__/
 *.py[cod]
 *.egg-info/
 *.egg
 
-# Data / Cache в src/
 src/cache/
 src/data/
 
-# Data / Cache
-/cache/
-/data
+cache/
+data/
 
 *.log
 *.tmp
 
-# Streamlit
 .streamlit/
 
-# OS files
 .DS_Store
 Thumbs.db
 
 .venv1/
 
-# API Keys and Sensitive Data
 .env
