@@ -1,5 +1,3 @@
-# src/utils/risk_management.py
-
 import numpy as np
 import pandas as pd
 from typing import Dict, List, Tuple, Optional, Union
@@ -131,7 +129,7 @@ class RiskManagement:
 
         return cvar
 
-    # Улучшаем модель восстановления в методе perform_stress_test
+    # Improving the recovery model in the perform_stress_test method
     @staticmethod
     def perform_stress_test(returns: pd.Series, scenario: str, portfolio_value: float = 10000) -> Dict:
         """
@@ -160,7 +158,7 @@ class RiskManagement:
                 'duration_days': 33,  # About 1 month
                 'recovery_multiplier': 0.8  # Recovery was relatively quick
             },
-            # Другие сценарии...
+
         }
 
         # Get the scenario shock parameters
@@ -185,13 +183,13 @@ class RiskManagement:
         mean_daily_return = returns.mean()
 
         if mean_daily_return > 0:
-            # Учитываем исторический паттерн восстановления для данного сценария
+            # Consider the historical recovery pattern for this scenario
             historical_recovery_days = shock_duration * recovery_multiplier
 
-            # Рассчитываем теоретическое время восстановления на основе средней доходности
+            # Calculate theoretical recovery time based on average yield
             theoretical_recovery_days = -np.log(1 + shock_percentage) / np.log(1 + mean_daily_return)
 
-            # Используем средневзвешенное значение двух подходов
+            # We use the weighted average of the two approaches
             recovery_days = 0.7 * theoretical_recovery_days + 0.3 * historical_recovery_days
             recovery_months = recovery_days / 21  # Assuming 21 trading days per month
         else:
@@ -254,96 +252,96 @@ class RiskManagement:
             'position_losses': position_losses
         }
 
-    # Измените объявление функции:
+    # Change the function declaration:
     @staticmethod
     def perform_historical_stress_test(data_fetcher, current_portfolio_tickers, weights, scenario_name,
                                        portfolio_value=10000, portfolio_data=None):
         """
-        Проводит стресс-тестирование на основе исторических данных конкретного сценария
+        Conducts stress testing based on historical data of a specific scenario
 
         Args:
-            data_fetcher: Экземпляр DataFetcher для загрузки исторических данных
-            current_portfolio_tickers: Список тикеров в портфеле
-            weights: Словарь с весами активов {ticker: weight}
-            scenario_name: Название сценария
-            portfolio_value: Текущая стоимость портфеля
-            portfolio_data: Данные портфеля (опционально)
+           data_fetcher: DataFetcher instance for loading historical data
+           current_portfolio_tickers: List of tickers in the portfolio
+           weights: Dictionary with asset weights {ticker: weight}
+           scenario_name: Scenario name
+           portfolio_value: Current portfolio value
+           portfolio_data: Portfolio data (optional)
 
         Returns:
-            Dictionary с результатами стресс-теста
+            Dictionary with stress test results
         """
-        # Определяем исторические периоды для известных кризисов
+        # We define historical periods for known crises
         historical_scenarios = {
             'financial_crisis_2008': {
-                'name': 'Финансовый кризис 2008',
+                'name': 'Financial crisis 2008',
                 'start': '2008-09-01',
                 'end': '2009-03-01',
-                'description': 'Мировой финансовый кризис после банкротства Lehman Brothers',
-                'index_ticker': 'SPY',  # Тикер для отслеживания общей динамики рынка
-                'market_impact': -0.50  # Примерное падение индекса для экстраполяции активов без исторических данных
+                'description': 'The global financial crisis after the bankruptcy of Lehman Brothers',
+                'index_ticker': 'SPY',  # Ticker for tracking overall market dynamics
+                'market_impact': -0.50  # Approximate index decline for asset extrapolation without historical data
             },
             'covid_2020': {
-                'name': 'Пандемия COVID-19',
+                'name': 'COVID-19 Pandemic',
                 'start': '2020-02-15',
                 'end': '2020-03-23',
-                'description': 'Обвал рынков в начале пандемии COVID-19',
+                'description': 'Markets Crash at the Beginning of the COVID-19 Pandemic',
                 'index_ticker': 'SPY',
                 'market_impact': -0.35
             },
             'tech_bubble_2000': {
-                'name': 'Крах доткомов',
+                'name': 'The Dot-com Crash',
                 'start': '2000-03-01',
                 'end': '2002-10-01',
-                'description': 'Крах рынка технологических компаний (2000-2002)',
+                'description': 'Tech Market Crash (2000-2002)',
                 'index_ticker': 'SPY',
                 'market_impact': -0.45
             },
             'black_monday_1987': {
-                'name': 'Черный понедельник',
+                'name': 'Black Monday',
                 'start': '1987-10-14',
                 'end': '1987-10-19',
-                'description': 'Резкое падение мировых фондовых рынков 19 октября 1987 года',
-                'index_ticker': 'SPY',  # Для акций без истории используем SPY
+                'description': 'The sharp fall of world stock markets on October 19, 1987',
+                'index_ticker': 'SPY',
                 'market_impact': -0.22
             },
             'inflation_shock': {
-                'name': 'Инфляционный шок',
+                'name': 'Inflation shock',
                 'start': '2021-11-01',
                 'end': '2022-06-16',
-                'description': 'Период высокой инфляции 2021-2022',
+                'description': 'High inflation period 2021-2022',
                 'index_ticker': 'SPY',
                 'market_impact': -0.20
             },
             'rate_hike_2018': {
-                'name': 'Повышение ставок 2018',
+                'name': 'Rate hike 2018',
                 'start': '2018-10-01',
                 'end': '2018-12-24',
-                'description': 'Падение рынка при повышении ставок ФРС 2018',
+                'description': 'Market Falls as Fed Rates Hike 2018',
                 'index_ticker': 'SPY',
                 'market_impact': -0.18
             },
             'moderate_recession': {
-                'name': 'Умеренная рецессия',
-                'start': '2018-10-01',  # Использует период из rate_hike_2018
+                'name': 'Moderate recession',
+                'start': '2018-10-01',  # Uses period from rate_hike_2018
                 'end': '2018-12-24',
-                'description': 'Моделирование умеренной рецессии',
+                'description': 'Modeling a Moderate Recession',
                 'index_ticker': 'SPY',
                 'market_impact': -0.25
             },
             'severe_recession': {
-                'name': 'Тяжелая рецессия',
-                'start': '2008-09-01',  # Использует период из financial_crisis_2008
+                'name': 'Severe recession',
+                'start': '2008-09-01',  # Uses period from financial_crisis_2008
                 'end': '2009-03-01',
-                'description': 'Моделирование тяжелой рецессии на основе кризиса 2008',
+                'description': 'Modeling a severe recession based on the 2008 crisis',
                 'index_ticker': 'SPY',
                 'market_impact': -0.45
             }
         }
 
-        # Проверяем, существует ли сценарий
+        # Check if the script exists
         if scenario_name not in historical_scenarios:
             return {
-                'error': f'Неизвестный сценарий: {scenario_name}',
+                'error': f'Unknown scenario: {scenario_name}',
                 'available_scenarios': list(historical_scenarios.keys())
             }
 
@@ -351,16 +349,16 @@ class RiskManagement:
         start_date = scenario['start']
         end_date = scenario['end']
 
-        # Добавляем индекс в список тикеров, если его нет
+        # Add index to ticker list if it is not there
         tickers_to_check = current_portfolio_tickers.copy()
         if scenario['index_ticker'] not in tickers_to_check:
             tickers_to_check.append(scenario['index_ticker'])
 
-        # Получаем исторические данные для периода сценария
+        # Get historical data for the scenario period
         try:
             historical_data = data_fetcher.get_batch_data(tickers_to_check, start_date, end_date)
         except Exception as e:
-            # В случае ошибки возвращаем резервный вариант с фиксированным процентом
+            # In case of error, return the fallback option with a fixed percentage
             return {
                 'scenario': scenario_name,
                 'scenario_description': scenario['description'],
@@ -368,14 +366,14 @@ class RiskManagement:
                 'portfolio_value': portfolio_value,
                 'portfolio_loss': portfolio_value * scenario['market_impact'],
                 'portfolio_after_shock': portfolio_value + (portfolio_value * scenario['market_impact']),
-                'error_msg': f"Не удалось загрузить исторические данные: {str(e)}. Используем фиксированный коэффициент."
+                'error_msg': f"Failed to load historical data: {str(e)}. use a fixed coefficient."
             }
 
-        # Для каждого актива рассчитываем изменение цены за период
+        # For each asset we calculate the price change over the period
         asset_price_changes = {}
         index_price_change = None
 
-        # Проверяем, есть ли данные для индекса
+        # Check if there is data for the index
         if scenario['index_ticker'] in historical_data and not historical_data[scenario['index_ticker']].empty:
             index_data = historical_data[scenario['index_ticker']]
             if len(index_data) >= 2:
@@ -383,11 +381,11 @@ class RiskManagement:
                 last_index_price = index_data['Close'].iloc[-1]
                 index_price_change = (last_index_price - first_index_price) / first_index_price
 
-        # Если не удалось получить изменение индекса, используем заданный market_impact
+        # If unable to get index change, use specified market_impact
         if index_price_change is None:
             index_price_change = scenario['market_impact']
 
-        # Рассчитываем изменение цены для каждого актива
+        # Calculate the price change for each asset
         for ticker in current_portfolio_tickers:
             if ticker in historical_data and not historical_data[ticker].empty:
                 ticker_data = historical_data[ticker]
@@ -396,34 +394,30 @@ class RiskManagement:
                     last_price = ticker_data['Close'].iloc[-1]
                     price_change = (last_price - first_price) / first_price
                     asset_price_changes[ticker] = price_change
-                # Место добавления: в функции perform_historical_stress_test,
-                # после строки "if ticker in historical_data and not historical_data[ticker].empty:"
-                # и перед строкой "else:"
 
-                # Эта часть заменяет все упоминания portfolio_data в методе:
                 if ticker not in historical_data or historical_data[ticker].empty:
-                    # Инициализация словаря для отслеживания типов аппроксимации
+                    # Initialize a dictionary to keep track of approximation types
                     if 'approximation_types' not in locals():
                         approximation_types = {}
 
-                    # Поиск активов того же сектора
+                    # Search for assets of the same sector
                     sector_tickers = []
                     ticker_sector = None
 
-                    # Определяем сектор текущего актива
+                    # Determine the sector of the current asset
                     if portfolio_data and 'assets' in portfolio_data:
                         for asset in portfolio_data['assets']:
                             if asset['ticker'] == ticker and 'sector' in asset:
                                 ticker_sector = asset['sector']
                                 break
 
-                    # Если известен сектор, собираем тикеры из того же сектора
+                    # If the sector is known, we collect tickers from the same sector
                     if ticker_sector and portfolio_data and 'assets' in portfolio_data:
                         for asset in portfolio_data['assets']:
                             if 'sector' in asset and asset['sector'] == ticker_sector and asset['ticker'] != ticker:
                                 sector_tickers.append(asset['ticker'])
 
-                    # Если найдены активы из того же сектора с данными, используем их среднее изменение
+                    # If assets from the same sector with the data are found, use their average change
                     if sector_tickers:
                         sector_changes = []
                         for sector_ticker in sector_tickers:
@@ -436,19 +430,19 @@ class RiskManagement:
                                     sector_changes.append(s_change)
 
                         if sector_changes:
-                            # Используем среднее изменение по сектору
+                            # Use the average change per sector
                             asset_price_changes[ticker] = sum(sector_changes) / len(sector_changes)
                             approximation_types[ticker] = "sector_proxy"
                             continue
 
-                    # Если нет данных о секторе или о других активах сектора, используем индекс с корректировкой на бету
-                    # Получаем текущую бету, если возможно
-                    current_beta = 1.0  # По умолчанию
+                    # If there is no data on the sector or other assets in the sector, use the beta-adjusted index
+                    # Get the current beta if possible
+                    current_beta = 1.0  # Default
 
-                    # Инициализация словаря бет, если он еще не существует
+                    # Initialize the beta dictionary if it doesn't exist yet
                     if 'betas' not in locals():
                         betas = {}
-                        # Можно добавить код для получения бет активов, но для простоты оставим значение по умолчанию
+
 
                     if ticker in betas:
                         current_beta = betas[ticker]
@@ -456,13 +450,13 @@ class RiskManagement:
                     asset_price_changes[ticker] = index_price_change * current_beta
                     approximation_types[ticker] = "market_proxy"
                 else:
-                    # Если недостаточно данных, используем изменение индекса с коэффициентом бета = 1
+                    # If there is not enough data, we use the index change with beta = 1
                     asset_price_changes[ticker] = index_price_change
             else:
-                # Если нет данных для актива, используем изменение индекса с коэффициентом бета = 1
+                # If there is no data for an asset, we use the change in the index with a beta coefficient of 1
                 asset_price_changes[ticker] = index_price_change
 
-        # Рассчитываем общий эффект на портфель
+        # Calculate the overall effect on the portfolio
         portfolio_impact = 0
         position_impacts = {}
 
@@ -483,19 +477,19 @@ class RiskManagement:
         portfolio_loss = portfolio_value * portfolio_impact
         portfolio_after_shock = portfolio_value + portfolio_loss
 
-        # Рассчитываем примерное время восстановления
-        avg_annual_return = 0.07  # Предполагаемая среднегодовая доходность рынка 7%
+        # Calculate the approximate recovery time
+        avg_annual_return = 0.07  # Estimated average annual market return 7%
         daily_return = (1 + avg_annual_return) ** (1 / 252) - 1
 
         if portfolio_impact < 0:
-            # Рассчитываем количество дней для восстановления
+            # Calculate the number of days for recovery
             recovery_days = -np.log(1 + portfolio_impact) / np.log(1 + daily_return)
-            recovery_months = recovery_days / 21  # примерно 21 торговый день в месяце
+            recovery_months = recovery_days / 21  # approximately 21 trading days per month
         else:
             recovery_days = 0
             recovery_months = 0
 
-        # Формируем результат
+        # Forming the result
         result = {
             'scenario': scenario_name,
             'scenario_name': scenario['name'],
@@ -513,42 +507,40 @@ class RiskManagement:
 
         return result
 
-    # Добавим этот метод в класс RiskManagement в файле src/utils/risk_management.py
-
     @staticmethod
     def perform_advanced_custom_stress_test(returns, weights, custom_shocks, asset_sectors=None, portfolio_value=10000,
                                             correlation_adjusted=True, use_beta=True):
         """
-        Проводит пользовательский стресс-тест с учетом корреляций между активами
+        Conducts a custom stress test taking into account correlations between assets
 
         Args:
-            returns: DataFrame с историческими доходностями для каждого актива
-            weights: Словарь с весами активов {ticker: weight}
-            custom_shocks: Словарь с шоковыми изменениями для рынка/активов/секторов
-            asset_sectors: Словарь с секторной принадлежностью активов {ticker: sector}
-            portfolio_value: Текущая стоимость портфеля
-            correlation_adjusted: Использовать ли корреляционные эффекты
-            use_beta: Использовать ли бету для оценки воздействия рыночного шока
+           returns: DataFrame with historical returns for each asset
+           weights: Dictionary with asset weights {ticker: weight}
+           custom_shocks: Dictionary with market/asset/sector shocks
+           asset_sectors: Dictionary with sector assignments of assets {ticker: sector}
+           portfolio_value: Current portfolio value
+           correlation_adjusted: Whether to use correlation effects
+           use_beta: Whether to use beta to estimate the impact of a market shock
 
         Returns:
-            Dictionary с результатами стресс-теста
+            Dictionary with stress test results
         """
         if returns.empty or not weights or not custom_shocks:
-            return {'error': 'Отсутствуют необходимые данные'}
+            return {'error': 'Required data is missing'}
 
-        # Приводим словари к множеству ключей, имеющихся в обоих
+        # Reduce dictionaries to a set of keys that are present in both
         tickers = set(weights.keys()).intersection(set(returns.columns))
 
-        # Общий рыночный шок (если задан)
+        # General market shock (if given)
         market_shock = custom_shocks.get('market', 0)
 
-        # Рассчитываем позиционные значения
+        # Calculate positional values
         position_values = {ticker: portfolio_value * weight for ticker, weight in weights.items() if ticker in tickers}
 
-        # Рассчитываем беты для каждого актива относительно рынка
+        # Calculate betas for each asset relative to the market
         betas = {}
         if use_beta and market_shock != 0 and 'SPY' in returns.columns:
-            market_returns = returns['SPY']  # Используем SPY как маркет-индекс
+            market_returns = returns['SPY']  # Using SPY as a Market Index
             market_var = market_returns.var()
 
             for ticker in tickers:
@@ -558,52 +550,52 @@ class RiskManagement:
                     beta = asset_cov / market_var
                     betas[ticker] = beta
                 else:
-                    betas[ticker] = 1.0  # По умолчанию бета = 1
+                    betas[ticker] = 1.0
         else:
-            # Если нет рыночного индекса или бета не используется, устанавливаем все беты = 1
+
             betas = {ticker: 1.0 for ticker in tickers}
 
-        # Матрица корреляций (для корректировки по корреляциям)
+        # Correlation matrix (for correlation adjustment)
         correlations = None
         if correlation_adjusted:
             correlations = returns[list(tickers)].corr()
 
-        # Рассчитываем шок для каждого актива с учетом:
-        # 1. Прямого шока, заданного для актива в custom_shocks
-        # 2. Рыночного шока * бета (если используется бета)
-        # 3. Секторного шока, если актив принадлежит к сектору с заданным шоком
+        # Calculate the shock for each asset taking into account:
+        # 1. Direct shock specified for the asset in custom_shocks
+        # 2. Market shock * beta (if beta is used)
+        # 3. Sector shock, if the asset belongs to a sector with the specified shock
         asset_shocks = {}
         sector_shocks = {k: v for k, v in custom_shocks.items() if k != 'market' and k != 'assets'}
         asset_specific_shocks = custom_shocks.get('assets', {})
 
         for ticker in tickers:
-            # Начинаем с рыночного шока, скорректированного по бете
+
             shock = market_shock * betas.get(ticker, 1.0)
 
-            # Добавляем секторный шок, если указан сектор для актива
+
             if asset_sectors and ticker in asset_sectors:
                 sector = asset_sectors[ticker]
                 if sector in sector_shocks:
                     shock += sector_shocks[sector]
 
-            # Добавляем специфический шок для актива, если он задан
+
             if ticker in asset_specific_shocks:
                 shock += asset_specific_shocks[ticker]
 
             asset_shocks[ticker] = shock
 
-        # Применяем корреляционную корректировку, если задано
+        # Apply correlation correction if specified
         if correlation_adjusted and correlations is not None:
             for ticker1 in tickers:
                 for ticker2 in tickers:
                     if ticker1 != ticker2:
-                        # Корректируем шок с учетом корреляции между активами
-                        # Чем выше корреляция, тем больше влияние шока одного актива на другой
+                        # Adjust the shock for the correlation between assets
+                        # The higher the correlation, the greater the impact of a shock to one asset on another
                         corr = correlations.loc[ticker1, ticker2]
                         asset_shocks[ticker1] += 0.1 * corr * asset_shocks[
-                            ticker2]  # Коэффициент 0.1 уменьшает эффект для большей реалистичности
+                            ticker2]  # Factor 0.1 reduces the effect for greater realism
 
-        # Рассчитываем потери для каждой позиции
+        # Calculate losses for each position
         position_losses = {}
         total_loss = 0
 
@@ -613,11 +605,11 @@ class RiskManagement:
                 position_losses[ticker] = loss
                 total_loss += loss
 
-        # Рассчитываем потерю портфеля и стоимость после шока
+        # Calculate portfolio loss and value after shock
         portfolio_after_shock = portfolio_value + total_loss
         loss_percentage = total_loss / portfolio_value if portfolio_value > 0 else 0
 
-        # Создаем подробную информацию о шоках для каждого актива
+        # Create detailed shock information for each asset
         detailed_impacts = {}
         for ticker in tickers:
             if ticker in asset_shocks and ticker in position_values:
@@ -629,15 +621,15 @@ class RiskManagement:
                     'position_loss': position_losses.get(ticker, 0)
                 }
 
-        # Оцениваем примерное время восстановления
+        # Estimate the approximate recovery time
         recovery_calculation = {
-            'avg_annual_return': 0.07,  # Предполагаемая среднегодовая доходность 7%
+            'avg_annual_return': 0.07,
             'daily_return': (1 + 0.07) ** (1 / 252) - 1
         }
 
         if loss_percentage < 0:
             recovery_days = -np.log(1 + loss_percentage) / np.log(1 + recovery_calculation['daily_return'])
-            recovery_months = recovery_days / 21  # примерно 21 торговый день в месяце
+            recovery_months = recovery_days / 21  # approximately 21 trading days per month
         else:
             recovery_days = 0
             recovery_months = 0
@@ -791,39 +783,33 @@ class RiskManagement:
     @staticmethod
     def analyze_drawdowns(returns: pd.Series) -> pd.DataFrame:
         """
-        Анализирует периоды просадок и возвращает подробную информацию о них
+        Analyzes periods of drawdowns and returns detailed information about them
 
         Args:
-            returns: Серия доходностей
+            returns: Returns Series
 
         Returns:
-            DataFrame с информацией о просадках
+            DataFrame with drawdown information
         """
         if returns.empty:
             return pd.DataFrame()
 
-        # Нормализуем индекс, чтобы устранить проблемы с часовыми поясами
+
         returns_index = returns.index.tz_localize(None) if returns.index.tz else returns.index
         returns = returns.copy()
         returns.index = returns_index
 
-        # Рассчитываем кумулятивную доходность
         cum_returns = (1 + returns).cumprod()
 
-        # Находим пики (максимумы)
         peak = cum_returns.cummax()
 
-        # Рассчитываем просадки
         drawdowns = (cum_returns / peak - 1)
 
-        # Находим периоды просадок
         is_drawdown = drawdowns < 0
 
-        # Если нет просадок, возвращаем пустой DataFrame
         if not is_drawdown.any():
             return pd.DataFrame(columns=['start_date', 'valley_date', 'recovery_date', 'depth', 'length', 'recovery'])
 
-        # Группируем последовательные периоды просадок
         drawdown_periods = []
         in_drawdown = False
         start_date = None
@@ -832,18 +818,15 @@ class RiskManagement:
 
         for date, value in drawdowns.items():
             if value < 0 and not in_drawdown:
-                # Начало новой просадки
                 in_drawdown = True
                 start_date = date
                 valley_date = date
                 valley_value = value
             elif value < 0 and in_drawdown:
-                # Продолжение просадки
                 if value < valley_value:
                     valley_date = date
                     valley_value = value
             elif value >= 0 and in_drawdown:
-                # Конец просадки (восстановление)
                 drawdown_periods.append({
                     'start_date': start_date,
                     'valley_date': valley_date,
@@ -854,7 +837,6 @@ class RiskManagement:
                 })
                 in_drawdown = False
 
-        # Если мы все еще в просадке на последнюю дату
         if in_drawdown:
             drawdown_periods.append({
                 'start_date': start_date,
@@ -865,7 +847,6 @@ class RiskManagement:
                 'recovery': None
             })
 
-        # Создаем DataFrame и сортируем по глубине просадки
         dd_df = pd.DataFrame(drawdown_periods)
         if not dd_df.empty:
             dd_df = dd_df.sort_values('depth')
@@ -875,24 +856,24 @@ class RiskManagement:
     @staticmethod
     def calculate_underwater_series(returns: pd.Series) -> pd.Series:
         """
-        Рассчитывает серию подводных значений (underwater) для визуализации
+        Calculates a series of underwater values for visualization
 
         Args:
-            returns: Серия доходностей
+            returns: Returns Series
 
         Returns:
-            Серия подводных значений
+            A series of underwater meanings
         """
         if returns.empty:
             return pd.Series()
 
-        # Рассчитываем кумулятивную доходность
+        # Calculate cumulative yield
         cum_returns = (1 + returns).cumprod()
 
-        # Находим пики (максимумы)
+        # Find peaks (maximums)
         peak = cum_returns.cummax()
 
-        # Рассчитываем просадки
+        # Calculating drawdowns
         underwater = (cum_returns / peak - 1)
 
         return underwater

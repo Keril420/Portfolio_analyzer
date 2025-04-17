@@ -4,22 +4,22 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-# Определение структуры цепочек сценариев
+# Defining the structure of script chains
 scenario_chains = {
     "inflation_shock": {
-        "name": "Инфляционный шок",
+        "name": "Inflation shock",
         "initial_impact": {"inflation": 5.0, "market": -0.05},
         "leads_to": [
             {
                 "scenario": "rate_hike",
                 "probability": 0.8,
-                "delay": 30,  # дней
-                "magnitude_modifier": 1.2  # усиление эффекта
+                "delay": 30,  # days
+                "magnitude_modifier": 1.2  # enhance effect
             }
         ]
     },
     "rate_hike": {
-        "name": "Повышение ставок",
+        "name": "Raising the stakes",
         "initial_impact": {"interest_rates": 1.5, "bonds": -0.10, "tech_stocks": -0.15},
         "leads_to": [
             {
@@ -37,7 +37,7 @@ scenario_chains = {
         ]
     },
     "credit_crunch": {
-        "name": "Кредитный кризис",
+        "name": "Credit Crisis",
         "initial_impact": {"financials": -0.20, "consumer_discretionary": -0.15, "market": -0.10},
         "leads_to": [
             {
@@ -49,7 +49,7 @@ scenario_chains = {
         ]
     },
     "housing_decline": {
-        "name": "Падение рынка недвижимости",
+        "name": "The real estate market is falling",
         "initial_impact": {"real_estate": -0.25, "financials": -0.10, "construction": -0.20},
         "leads_to": [
             {
@@ -61,7 +61,7 @@ scenario_chains = {
         ]
     },
     "consumer_weakness": {
-        "name": "Ослабление потребительского спроса",
+        "name": "Weakening consumer demand",
         "initial_impact": {"consumer_discretionary": -0.15, "retail": -0.20, "market": -0.05},
         "leads_to": [
             {
@@ -73,42 +73,42 @@ scenario_chains = {
         ]
     },
     "recession": {
-        "name": "Экономическая рецессия",
+        "name": "Economic recession",
         "initial_impact": {"market": -0.25, "unemployment": 3.0, "gdp": -2.0},
-        "leads_to": []  # Конечное состояние
+        "leads_to": []  # Final state
     }
 }
 
 
 def simulate_scenario_chain(starting_scenario, num_simulations=1000):
-    """Симулирует возможные цепочки событий, начиная с заданного сценария"""
+    """Simulates possible chains of events starting from a given scenario"""
     all_results = []
 
     for _ in range(num_simulations):
-        # Начинаем с исходного сценария
+        # Let's start with the original script
         current_scenario = starting_scenario
         chain = [current_scenario]
         total_impact = scenario_chains[current_scenario]["initial_impact"].copy()
-        timeline = [0]  # дни с начала первого события
+        timeline = [0]  # days since the start of the first event
 
-        # Продолжаем цепочку, пока есть последующие события
+        # continue the chain as long as there are subsequent events
         while current_scenario in scenario_chains and "leads_to" in scenario_chains[current_scenario]:
             next_events = scenario_chains[current_scenario]["leads_to"]
 
-            # Если нет последующих событий, завершаем цепочку
+            # If there are no subsequent events, end the chain
             if not next_events:
                 break
 
-            # Для каждого возможного последующего события
+            # For each possible subsequent event
             triggered_next = False
             for next_event in next_events:
-                # Определяем, произойдет ли событие (на основе вероятности)
+                # Determine whether an event will occur (based on probability)
                 if random.random() < next_event["probability"]:
                     current_scenario = next_event["scenario"]
                     chain.append(current_scenario)
                     timeline.append(timeline[-1] + next_event["delay"])
 
-                    # Суммируем влияние, с учетом модификатора силы
+                    # Sum up the influence, taking into account the strength modifier
                     for factor, impact in scenario_chains[current_scenario]["initial_impact"].items():
                         if factor in total_impact:
                             total_impact[factor] += impact * next_event["magnitude_modifier"]
@@ -118,7 +118,7 @@ def simulate_scenario_chain(starting_scenario, num_simulations=1000):
                     triggered_next = True
                     break
 
-            # Если ни одно из последующих событий не сработало, завершаем цепочку
+            # If none of the subsequent events triggered, terminate the chain
             if not triggered_next:
                 break
 
@@ -132,8 +132,8 @@ def simulate_scenario_chain(starting_scenario, num_simulations=1000):
 
 
 def visualize_scenario_chains(chain_results):
-    """Создает санкей-диаграмму для визуализации цепочек сценариев"""
-    # Подсчет переходов между сценариями
+    """Creates a sankey diagram to visualize scenario chains"""
+    # Counting transitions between scenarios
     transitions = {}
     for result in chain_results:
         chain = result["chain"]
@@ -143,22 +143,22 @@ def visualize_scenario_chains(chain_results):
             key = (from_scenario, to_scenario)
             transitions[key] = transitions.get(key, 0) + 1
 
-    # Создание данных для санкей-диаграммы
+    # Creating data for a sankey chart
     source = []
     target = []
     value = []
     labels = []
 
-    # Собираем уникальные сценарии
+    # We collect unique scenarios
     all_scenarios = set()
     for from_s, to_s in transitions.keys():
         all_scenarios.add(from_s)
         all_scenarios.add(to_s)
 
-    # Создаем индексы для сценариев
+    # We collect unique scenarios
     scenario_indices = {scenario: i for i, scenario in enumerate(all_scenarios)}
 
-    # Собираем данные для диаграммы
+    # Collecting data for the chart
     for (from_s, to_s), count in transitions.items():
         source.append(scenario_indices[from_s])
         target.append(scenario_indices[to_s])
@@ -166,7 +166,7 @@ def visualize_scenario_chains(chain_results):
 
     labels = [scenario_chains[s]["name"] for s in all_scenarios]
 
-    # Создаем санкей-диаграмму
+    # Create a sankey diagram
     fig = go.Figure(data=[go.Sankey(
         node=dict(
             pad=15,
@@ -187,37 +187,39 @@ def visualize_scenario_chains(chain_results):
 
 
 def scenario_chaining_page():
-    """Страница для анализа цепочек стрессовых событий"""
-    st.title("Анализ цепочек стрессовых событий")
+    """Stress Event Chain Analysis Page"""
+    st.title("Stress Event Chain Analysis")
 
     st.write("""
-    Стрессовые события редко происходят изолированно. Одно событие часто запускает цепочку 
-    последующих событий, создавая сложные финансовые потрясения. Эта страница позволяет 
-    моделировать такие цепочки и их совокупное влияние на рынки.
+    Stress events rarely occur in isolation. 
+    A single event often triggers a chain of subsequent events, 
+    creating complex financial shocks. 
+    This page allows you to model such chains 
+    and their combined impact on markets.
     """)
 
     starting_scenario = st.selectbox(
-        "Выберите начальный сценарий",
+        "Select the initial scenario",
         list(scenario_chains.keys()),
         format_func=lambda x: scenario_chains[x]["name"]
     )
 
     num_simulations = st.slider(
-        "Количество симуляций",
+        "Number of simulations",
         min_value=100,
         max_value=10000,
         value=1000,
         step=100
     )
 
-    if st.button("Моделировать цепочки событий"):
-        with st.spinner("Выполнение моделирования..."):
+    if st.button("Model chains of events"):
+        with st.spinner("Performing the simulation..."):
             chain_results = simulate_scenario_chain(starting_scenario, num_simulations)
 
-            # Визуализация цепочек
+            # Visualization of chains
             st.plotly_chart(visualize_scenario_chains(chain_results), use_container_width=True)
 
-            # Анализ совокупного воздействия
+            # Total Impact Analysis
             impacts = {}
             for result in chain_results:
                 for factor, value in result["total_impact"].items():
@@ -225,7 +227,7 @@ def scenario_chaining_page():
                         impacts[factor] = []
                     impacts[factor].append(value)
 
-            # Статистика воздействия
+            # Impact Statistics
             impact_stats = {}
             for factor, values in impacts.items():
                 impact_stats[factor] = {
@@ -235,57 +237,57 @@ def scenario_chaining_page():
                     "p95": np.percentile(values, 95)
                 }
 
-            # Отображение статистики
+            # Display statistics
             impact_df = pd.DataFrame({
-                "Фактор": list(impact_stats.keys()),
-                "Среднее влияние": [stats["mean"] for stats in impact_stats.values()],
-                "Медианное влияние": [stats["median"] for stats in impact_stats.values()],
-                "5% квантиль": [stats["p5"] for stats in impact_stats.values()],
-                "95% квантиль": [stats["p95"] for stats in impact_stats.values()]
+                "Factor": list(impact_stats.keys()),
+                "Average influence": [stats["mean"] for stats in impact_stats.values()],
+                "Median influence": [stats["median"] for stats in impact_stats.values()],
+                "5% quantile": [stats["p5"] for stats in impact_stats.values()],
+                "95% quantile": [stats["p95"] for stats in impact_stats.values()]
             })
 
-            st.subheader("Статистика совокупного воздействия")
+            st.subheader("Total Impact Statistics")
             st.dataframe(impact_df.style.format({
-                "Среднее влияние": "{:.2f}%",
-                "Медианное влияние": "{:.2f}%",
-                "5% квантиль": "{:.2f}%",
-                "95% квантиль": "{:.2f}%"
+                "Average influence": "{:.2f}%",
+                "Median influence": "{:.2f}%",
+                "5% quantile": "{:.2f}%",
+                "95% quantile": "{:.2f}%"
             }), use_container_width=True)
 
-            # Визуализация распределения воздействия
-            st.subheader("Распределение совокупного воздействия")
+            # Visualization of impact distribution
+            st.subheader("Distribution of the total impact")
 
-            # Создаем боксплоты для каждого фактора
+            # Create boxplots for each factor
             fig = go.Figure()
 
             for factor, values in impacts.items():
                 fig.add_trace(go.Box(
                     y=values,
                     name=factor,
-                    boxmean=True  # добавляем среднее значение
+                    boxmean=True  # add the average value
                 ))
 
             fig.update_layout(
-                title="Распределение влияния по факторам",
-                yaxis_title="Влияние (%)",
+                title="Distribution of influence by factors",
+                yaxis_title="Influence (%)",
                 showlegend=False
             )
 
             st.plotly_chart(fig, use_container_width=True)
 
-            # Отображение таблицы наиболее частых цепочек
+            # Display the table of the most frequent chains
             chain_counts = {}
             for result in chain_results:
                 chain_str = " -> ".join([scenario_chains[s]["name"] for s in result["chain"]])
                 chain_counts[chain_str] = chain_counts.get(chain_str, 0) + 1
 
             chain_df = pd.DataFrame({
-                "Цепочка сценариев": list(chain_counts.keys()),
-                "Частота появления": list(chain_counts.values()),
-                "Частота (%)": [count / num_simulations * 100 for count in chain_counts.values()]
-            }).sort_values("Частота появления", ascending=False).head(10)
+                "Scenario chain": list(chain_counts.keys()),
+                "Frequency of occurrence": list(chain_counts.values()),
+                "Frequency (%)": [count / num_simulations * 100 for count in chain_counts.values()]
+            }).sort_values("Frequency of occurrence", ascending=False).head(10)
 
-            st.subheader("Топ-10 наиболее частых цепочек сценариев")
+            st.subheader("Top 10 Most Common Scenario Chains")
             st.dataframe(chain_df.style.format({
-                "Частота (%)": "{:.2f}%"
+                "Frequency (%)": "{:.2f}%"
             }), use_container_width=True)

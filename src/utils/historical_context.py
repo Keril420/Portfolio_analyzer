@@ -4,21 +4,21 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-# База данных исторических кризисов
+# Database of historical crises
 historical_crisis_context = {
     "financial_crisis_2008": {
-        "name": "Финансовый кризис 2008-2009",
-        "period": "Сентябрь 2008 - Март 2009",
+        "name": "Financial crisis 2008-2009",
+        "period": "September 2008 - March 2009",
         "trigger_events": [
-            "Крах Lehman Brothers 15 сентября 2008",
-            "Кризис на рынке субстандартной ипотеки",
-            "Проблемы с ликвидностью в банковской системе"
+            "Lehman Brothers Collapse September 15, 2008",
+            "Subprime Mortgage Crisis",
+            "Liquidity Problems in the Banking System"
         ],
         "key_indicators": [
-            {"name": "Спред TED (разница между LIBOR и казначейскими векселями)", "value": "4.58%",
+            {"name": "TED Spread (the difference between LIBOR and Treasury Bills)", "value": "4.58%",
              "normal": "0.1-0.5%"},
-            {"name": "VIX (индекс волатильности)", "value": "80.86", "normal": "15-20"},
-            {"name": "Спред высокодоходных облигаций", "value": "21.82%", "normal": "3-5%"}
+            {"name": "VIX (volatility index)", "value": "80.86", "normal": "15-20"},
+            {"name": "High Yield Bond Spread", "value": "21.82%", "normal": "3-5%"}
         ],
         "market_impact": {
             "S&P 500": "-56.8%",
@@ -28,249 +28,249 @@ historical_crisis_context = {
             "Gold": "+25.0%"
         },
         "policy_response": [
-            "Снижение ставки ФРС до 0-0.25%",
-            "Программа выкупа активов (QE1)",
-            "Программа помощи проблемным активам (TARP)"
+            "Fed Rate Cut to 0-0.25%",
+            "Asset Purchase Program (QE1)",
+            "Troubled Asset Relief Program (TARP)"
         ],
         "lessons_learned": [
-            "Важность контроля над кредитным плечом финансовых институтов",
-            "Необходимость прозрачности на рынках деривативов",
-            "Системные риски в финансовой системе требуют системного надзора"
+            "The Importance of Controlling Financial Institutions' Leverage",
+            "The Need for Transparency in Derivatives Markets",
+            "Systemic Risks in the Financial System Require Systemic Oversight"
         ],
         "early_warning_signs": [
-            "Резкий рост цен на недвижимость (пузырь)",
-            "Расширение кредитования ненадежным заёмщикам",
-            "Чрезмерная секьюритизация ипотечных кредитов",
-            "Высокий леверидж в финансовой системе"
+            "House price bubble",
+            "Expansion of subprime lending",
+            "Excessive securitization of mortgages",
+            "High leverage in the financial system"
         ],
         "most_resilient_assets": [
-            "Казначейские облигации США",
-            "Японская иена",
-            "Золото",
-            "Компании с низким уровнем долга и стабильными денежными потоками"
+            "US Treasuries",
+            "Japanese Yen",
+            "Gold",
+            "Low Debt Companies with Stable Cash Flows"
         ],
         "most_affected_assets": [
-            "Финансовый сектор (особенно банки и страховые компании)",
-            "Недвижимость и компании, связанные с недвижимостью",
-            "Циклические потребительские товары",
-            "Малые компании с высоким уровнем долга"
+            "Financials (especially banks and insurance companies)",
+            "Real estate and real estate related companies",
+            "Cyclic consumer goods",
+            "Small companies with high debt levels"
         ]
     },
     "covid_2020": {
-        "name": "Пандемия COVID-19",
-        "period": "Февраль 2020 - Март 2020",
+        "name": "COVID-19 Pandemic",
+        "period": "February 2020 - March 2020",
         "trigger_events": [
-            "Распространение коронавируса за пределы Китая",
-            "Объявление пандемии ВОЗ 11 марта 2020",
-            "Массовые локдауны и прекращение экономической активности"
+            "Spread of coronavirus beyond China",
+            "WHO declares pandemic on March 11, 2020",
+            "Mass lockdowns and economic shutdowns"
         ],
         "key_indicators": [
-            {"name": "VIX (индекс волатильности)", "value": "82.69", "normal": "15-20"},
-            {"name": "Индекс экономической неопределённости", "value": "950", "normal": "100-150"},
-            {"name": "Спред корпоративных облигаций", "value": "10.87%", "normal": "1-3%"}
+            {"name": "VIX (volatility index)", "value": "82.69", "normal": "15-20"},
+            {"name": "Economic Uncertainty Index", "value": "950", "normal": "100-150"},
+            {"name": "Corporate Bond Spread", "value": "10.87%", "normal": "1-3%"}
         ],
         "market_impact": {
             "S&P 500": "-33.9%",
             "MSCI World": "-34.0%",
             "Oil": "-65.0%",
-            "Gold": "-12.0% (временно, затем рост)"
+            "Gold": "-12.0% (temporarily, then growth)"
         },
         "policy_response": [
-            "Снижение ставки ФРС до 0-0.25%",
-            "Масштабные программы количественного смягчения",
-            "Пакеты финансовой помощи (CARES Act в США)",
-            "Глобальная монетарная и фискальная поддержка"
+            "Fed Rate Cut to 0-0.25%",
+            "Large-Scale Quantitative Easing Programs",
+            "Financial Aid Packages (CARES Act in the US)",
+            "Global Monetary and Fiscal Support"
         ],
         "lessons_learned": [
-            "Важность диверсификации цепочек поставок",
-            "Необходимость устойчивых бизнес-моделей и сильных балансов",
-            "Критическая роль правительственной поддержки в системных кризисах",
-            "Ускорение цифровой трансформации"
+            "The Importance of Supply Chain Diversification",
+            "The Need for Resilient Business Models and Strong Balance Sheets",
+            "The Critical Role of Government Support in Systemic Crises",
+            "Accelerating Digital Transformation"
         ],
         "early_warning_signs": [
-            "Распространение вируса в Китае",
-            "Нарушение цепочек поставок",
-            "Предупреждения от эпидемиологов"
+            "Spread of the virus in China",
+            "Disruption of supply chains",
+            "Warnings from epidemiologists"
         ],
         "most_resilient_assets": [
-            "Технологические компании (особенно связанные с удаленной работой)",
-            "Фармацевтика и здравоохранение",
-            "Компании электронной коммерции",
-            "Казначейские облигации США"
+            "Technology companies (especially those related to remote work)",
+            "Pharmaceuticals and healthcare",
+            "E-commerce companies",
+            "US Treasuries"
         ],
         "most_affected_assets": [
-            "Авиакомпании и туристический сектор",
-            "Традиционная розничная торговля",
-            "Энергетический сектор",
-            "Банки и финансовые учреждения"
+            "Airlines and Travel Sector",
+            "Traditional Retail",
+            "Energy Sector",
+            "Banks and Financial Institutions"
         ]
     },
     "tech_bubble_2000": {
-        "name": "Крах доткомов",
-        "period": "Март 2000 - Октябрь 2002",
+        "name": "The Dot-com Crash",
+        "period": "March 2000 - October 2002",
         "trigger_events": [
-            "Достижение пика NASDAQ 10 марта 2000",
-            "Судебное решение против Microsoft в антимонопольном деле",
-            "Переоценка интернет-компаний без доходов"
+            "NASDAQ Peak March 10, 2000",
+            "Microsoft Antitrust Case Ruling",
+            "Revaluation of Internet Companies Without Revenue"
         ],
         "key_indicators": [
             {"name": "P/E NASDAQ", "value": ">200", "normal": "15-25"},
-            {"name": "Количество IPO технологических компаний", "value": "рекордно высокое", "normal": "умеренное"},
-            {"name": "Доля технологий в S&P 500", "value": "33%", "normal": "15-20%"}
+            {"name": "Number of IPOs of technology companies", "value": "record high", "normal": "moderate"},
+            {"name": "Technology Share in the S&P 500", "value": "33%", "normal": "15-20%"}
         ],
         "market_impact": {
             "NASDAQ": "-78.0%",
             "S&P 500": "-49.1%",
-            "Технологический сектор": "-83.0%"
+            "Technology sector": "-83.0%"
         },
         "policy_response": [
-            "Снижение ставки ФРС с 6.5% до 1.75%",
-            "Фискальные стимулы (снижение налогов)"
+            "Fed rate cut from 6.5% to 1.75%",
+            "Fiscal stimulus (tax cuts))"
         ],
         "lessons_learned": [
-            "Опасность инвестирования на основе спекулятивных оценок",
-            "Важность устойчивых бизнес-моделей и реальных доходов",
-            "Риски концентрации в одном секторе"
+            "The Dangers of Investing Based on Speculative Valuations",
+            "The Importance of Sustainable Business Models and Real Returns",
+            "The Risks of Sector Concentration"
         ],
         "early_warning_signs": [
-            "Стремительный рост оценок без соответствующего роста доходов",
-            "Резкое увеличение числа IPO убыточных компаний",
-            "Быстрый рост маржинального кредитования"
+            "Rapid growth in valuations without corresponding growth in earnings",
+            "A sharp increase in the number of IPOs of loss-making companies",
+            "Rapid growth in margin lending"
         ],
         "most_resilient_assets": [
-            "Ценные бумаги с фиксированным доходом",
-            "Защитные секторы (здравоохранение, коммунальные услуги)",
-            "Стоимостные акции",
-            "Недвижимость"
+            "Fixed Income",
+            "Defensive Sectors (Healthcare, Utilities)",
+            "Value Stocks",
+            "Real Estate"
         ],
         "most_affected_assets": [
-            "Интернет-компании и доткомы",
-            "Телекоммуникационный сектор",
-            "Производители компьютерного оборудования",
-            "Компании-поставщики B2B решений"
+            "Internet and Dotcom Companies",
+            "Telecommunications Sector",
+            "Computer Equipment Manufacturers",
+            "B2B Solution Providers"
         ]
     },
     "inflation_shock": {
-        "name": "Инфляционный шок 2021-2022",
-        "period": "Конец 2021 - 2022",
+        "name": "Inflation shock 2021-2022",
+        "period": "End of 2021 - 2022",
         "trigger_events": [
-            "Восстановление спроса после пандемии",
-            "Нарушения в цепочках поставок",
-            "Энергетический кризис",
-            "Масштабные фискальные и монетарные стимулы"
+            "Demand Recovery from the Pandemic",
+            "Supply Chain Disruptions",
+            "Energy Crisis",
+            "Large Fiscal and Monetary Stimuli"
         ],
         "key_indicators": [
-            {"name": "Инфляция в США (CPI)", "value": "9.1%", "normal": "2-3%"},
-            {"name": "Цены на энергоносители", "value": "+76%", "normal": "±5-10%"},
-            {"name": "Индекс цен производителей", "value": "11.3%", "normal": "1-3%"}
+            {"name": "US Inflation (CPI)", "value": "9.1%", "normal": "2-3%"},
+            {"name": "Energy prices", "value": "+76%", "normal": "±5-10%"},
+            {"name": "Producer Price Index", "value": "11.3%", "normal": "1-3%"}
         ],
         "market_impact": {
             "S&P 500": "-20.0%",
-            "Облигации (AGG)": "-17.0%",
+            "Bonds (AGG)": "-17.0%",
             "NASDAQ": "-33.0%",
-            "Золото": "-10.0%"
+            "Gold": "-10.0%"
         },
         "policy_response": [
-            "Повышение ставок ФРС (2.25%-4.5% за год)",
-            "Сокращение баланса ФРС (количественное ужесточение)",
-            "Схожие действия других центральных банков"
+            "Higher Fed rates (2.25%-4.5% per year)",
+            "Reduce Fed balance sheet (quantitative tightening)",
+            "Similar actions by other central banks"
         ],
         "lessons_learned": [
-            "Уязвимость глобальных цепочек поставок",
-            "Риски одновременных фискальных и монетарных стимулов",
-            "Важность подготовки к инфляционным периодам",
-            "Двойной удар по портфелям 60/40 (одновременное падение акций и облигаций)"
+            "Vulnerability of Global Supply Chains",
+            "Risks of Simultaneous Fiscal and Monetary Stimuli",
+            "The Importance of Preparing for Inflationary Periods",
+            "Double Whammy for 60/40 Portfolios (Simultaneous Fall in Stocks and Bonds)"
         ],
         "early_warning_signs": [
-            "Рост цен на сырье",
-            "Задержки в цепочках поставок",
-            "Рекордный рост денежной массы (M2)",
-            "Рекордно низкие процентные ставки при восстановлении экономики"
+            "Rising Commodity Prices",
+            "Supply Chain Delays",
+            "Record Money Supply (M2) Growth",
+            "Record Low Interest Rates as Economy Recovers"
         ],
         "most_resilient_assets": [
-            "Энергетический сектор",
-            "Сырьевые товары",
-            "Ценные бумаги с защитой от инфляции (TIPS)",
-            "Стоимостные акции с ценовой силой"
+            "Energy",
+            "Commodities",
+            "TIPS",
+            "Value Stocks with Price Power"
         ],
         "most_affected_assets": [
-            "Технологические и растущие акции",
-            "Долгосрочные облигации",
-            "Компании с низкой прибыльностью или высокими затратами на энергию",
-            "Акции роста с высокими мультипликаторами"
+            "Tech and growth stocks",
+            "Long-term bonds",
+            "Companies with low profitability or high energy costs",
+            "Growth stocks with high multiples"
         ]
     }
 }
 
 
 def display_historical_context(scenario_key):
-    """Отображает подробный исторический контекст для выбранного сценария"""
+    """Displays detailed historical context for the selected scenario."""
 
     if scenario_key not in historical_crisis_context:
-        st.warning(f"Исторический контекст для сценария {scenario_key} отсутствует.")
+        st.warning(f"There is no historical context for the scenario. {scenario_key} ")
         return
 
     context = historical_crisis_context[scenario_key]
 
-    st.subheader(f"Исторический контекст: {context['name']}")
+    st.subheader(f"Historical context: {context['name']}")
 
-    # Основная информация
-    st.write(f"**Период:** {context['period']}")
+    # Basic information
+    st.write(f"**Period:** {context['period']}")
 
-    # Триггерные события
-    st.subheader("Ключевые события, запустившие кризис")
+    # Trigger Events
+    st.subheader("Key events that triggered the crisis")
     for event in context['trigger_events']:
         st.markdown(f"- {event}")
 
-    # Ключевые индикаторы
-    st.subheader("Ключевые индикаторы")
+    # Key indicators
+    st.subheader("Key indicators")
 
     indicators_df = pd.DataFrame({
-        'Индикатор': [i['name'] for i in context['key_indicators']],
-        'Значение во время кризиса': [i['value'] for i in context['key_indicators']],
-        'Нормальное значение': [i['normal'] for i in context['key_indicators']]
+        'Indicator': [i['name'] for i in context['key_indicators']],
+        'Importance in times of crisis': [i['value'] for i in context['key_indicators']],
+        'Normal value': [i['normal'] for i in context['key_indicators']]
     })
 
     st.dataframe(indicators_df, use_container_width=True)
 
-    # Влияние на рынок
-    st.subheader("Влияние на рынки")
+    # Impact on the market
+    st.subheader("Impact on markets")
 
     impact_data = []
     for market, change in context['market_impact'].items():
         impact_data.append({
-            'Рынок/Актив': market,
-            'Изменение': change
+            'Market/Asset': market,
+            'Change': change
         })
 
     impact_df = pd.DataFrame(impact_data)
 
-    # Создаем диаграмму воздействия, если возможно преобразовать изменения в числа
+    # Create an impact diagram if it is possible to convert changes into numbers
     try:
-        # Пытаемся извлечь числовые значения из строк изменений
+        # Trying to extract numeric values ​​from change lines
         numeric_changes = []
-        for change in impact_df['Изменение']:
-            # Удаляем знаки % и +, оставляем только числа и минус при наличии
+        for change in impact_df['Change']:
+            # Remove the % and + signs, leaving only numbers and minus if any
             clean_change = change.replace('%', '').replace('+', '')
-            # Отделяем числовую часть, если есть скобки или текст
+            # Separate the numeric part if there are brackets or text
             if '(' in clean_change:
                 clean_change = clean_change.split('(')[0].strip()
 
             try:
                 numeric_changes.append(float(clean_change))
             except ValueError:
-                # Если не удается преобразовать в число, добавляем 0
+                # If it can't be converted to a number, add 0
                 numeric_changes.append(0)
 
-        # Создаем диаграмму
+        # Create a diagram
         fig_impact = px.bar(
             impact_df,
-            x='Рынок/Актив',
+            x='Market/Asset',
             y=numeric_changes,
             color=numeric_changes,
             color_continuous_scale='RdYlGn',
-            title='Влияние на рынки',
-            labels={'y': 'Изменение (%)'}
+            title='Impact on markets',
+            labels={'y': 'Change (%)'}
         )
 
         fig_impact.update_traces(
@@ -281,137 +281,137 @@ def display_historical_context(scenario_key):
         st.plotly_chart(fig_impact, use_container_width=True)
 
     except Exception as e:
-        # Если не удалось создать диаграмму, просто показываем таблицу
-        st.warning(f"Не удалось создать диаграмму: {e}")
+        # If the diagram could not be created, just show the table
+        st.warning(f"Failed to create diagram: {e}")
         st.dataframe(impact_df, use_container_width=True)
 
-    # Два столбца для остальной информации
+    # Two columns for other information
     col1, col2 = st.columns(2)
 
     with col1:
-        # Ответные меры
-        st.subheader("Ответные меры регуляторов")
+        # Countermeasures
+        st.subheader("Regulatory responses")
         for policy in context['policy_response']:
             st.markdown(f"- {policy}")
 
-        # Наиболее устойчивые активы
-        st.subheader("Наиболее устойчивые активы")
+        # The most sustainable assets
+        st.subheader("The most sustainable assets")
         for asset in context['most_resilient_assets']:
             st.markdown(f"- {asset}")
 
     with col2:
-        # Извлеченные уроки
-        st.subheader("Извлеченные уроки")
+        # Lessons Learned
+        st.subheader("Lessons Learned")
         for lesson in context['lessons_learned']:
             st.markdown(f"- {lesson}")
 
-        # Наиболее пострадавшие активы
-        st.subheader("Наиболее пострадавшие активы")
+        # The assets most affected
+        st.subheader("The assets most affected")
         for asset in context['most_affected_assets']:
             st.markdown(f"- {asset}")
 
-    # Ранние предупреждающие знаки
-    st.subheader("Ранние предупреждающие знаки")
+    # Early warning signs
+    st.subheader("Early warning signs")
     for sign in context['early_warning_signs']:
         st.markdown(f"- {sign}")
 
-    # Индикаторы, которые могут предсказать подобный кризис
-    st.subheader("Что отслеживать сегодня")
+    # Indicators that can predict such a crisis
+    st.subheader("What to track today")
 
     st.info("""
-    Следующие индикаторы могут помочь выявить похожие условия в текущей экономике:
+    The following indicators may help identify similar conditions in the current economy:
 
-    1. **Рыночная оценка**: Экстремальные уровни P/E, особенно в определенных секторах
-    2. **Кредитные спреды**: Расширение спредов может указывать на растущий стресс
-    3. **Индекс волатильности (VIX)**: Длительные периоды низкой волатильности, сменяющиеся резкими скачками
-    4. **Рычаги (леверидж)**: Значительное увеличение корпоративного и потребительского долга
-    5. **Рыночный сентимент**: Чрезмерный оптимизм или страх в настроениях инвесторов
+      1. **Market Valuation**: Extreme P/E levels, especially in certain sectors
+      2. **Credit Spreads**: Widening spreads can indicate rising stress
+      3. **Volatility Index (VIX)**: Long periods of low volatility followed by sharp spikes
+      4. **Leverage**: Large increases in corporate and consumer debt
+      5. **Market Sentiment**: Excessive optimism or fear in investor sentiment
     """)
 
-    # Современные параллели (если есть)
+    # Modern parallels (if any)
     if 'current_parallels' in context:
-        st.subheader("Современные параллели")
+        st.subheader("Modern parallels")
         for parallel in context['current_parallels']:
             st.markdown(f"- {parallel}")
 
 
 def historical_analogy_page():
-    """Страница исторических аналогий для текущего состояния рынка"""
+    """Page of historical analogies for the current state of the market"""
 
-    st.title("Исторические аналогии")
+    st.title("Historical analogies")
 
     st.write("""
-    На этой странице мы сравниваем текущую рыночную ситуацию с историческими периодами, 
-    чтобы выявить возможные аналогии и извлечь уроки из прошлого.
+    On this page we compare the current market situation with historical periods 
+    to identify possible analogies and learn lessons from the past..
     """)
 
-    # Выбор текущего рыночного режима
+    # Current market regime
     current_regime = st.selectbox(
-        "Текущий рыночный режим",
+        "Current market regime",
         [
-            "Поздняя фаза бычьего рынка с высокими оценками",
-            "Начало медвежьего рынка",
-            "Середина медвежьего рынка",
-            "Конец медвежьего рынка",
-            "Начало бычьего рынка",
-            "Рост инфляции и процентных ставок",
-            "Экономическая рецессия",
-            "Геополитическая напряженность"
+            "Late Bull Market with High Valuations",
+            "Beginning of a Bear Market",
+            "Mid-Bear Market",
+            "End of a Bear Market",
+            "Beginning of a Bull Market",
+            "Rising Inflation and Interest Rates",
+            "Economic Recession",
+            "Geopolitical Tensions"
         ]
     )
 
-    # Определение исторических аналогий в зависимости от выбранного режима
+    # Determination of historical analogies depending on the selected mode
     historical_analogies = {
-        "Поздняя фаза бычьего рынка с высокими оценками": [
-            {"period": "1999-2000", "event": "Пузырь доткомов", "similarity": 0.85},
-            {"period": "2007", "event": "Перед финансовым кризисом 2008", "similarity": 0.75},
-            {"period": "1972", "event": "Перед нефтяным кризисом", "similarity": 0.65}
+        "Late Phase Bull Market with High Valuations": [
+            {"period": "1999-2000", "event": "Dotcom bubble", "similarity": 0.85},
+            {"period": "2007", "event": "Before the financial crisis of 2008", "similarity": 0.75},
+            {"period": "1972", "event": "Before the oil crisis", "similarity": 0.65}
         ],
-        "Начало медвежьего рынка": [
-            {"period": "Q4 2007", "event": "Начало финансового кризиса", "similarity": 0.8},
-            {"period": "Q1 2000", "event": "Начало краха доткомов", "similarity": 0.7},
-            {"period": "Q4 1972", "event": "Перед нефтяным кризисом", "similarity": 0.6}
+        "The beginning of the bear market": [
+            {"period": "Q4 2007", "event": "The beginning of the financial crisis", "similarity": 0.8},
+            {"period": "Q1 2000", "event": "The beginning of the dot-com crash", "similarity": 0.7},
+            {"period": "Q4 1972", "event": "Before the oil crisis", "similarity": 0.6}
         ],
-        "Середина медвежьего рынка": [
-            {"period": "2008", "event": "Финансовый кризис", "similarity": 0.75},
-            {"period": "2001", "event": "Крах доткомов", "similarity": 0.7},
-            {"period": "1973-1974", "event": "Нефтяной кризис", "similarity": 0.65}
+        "The middle of a bear market": [
+            {"period": "2008", "event": "Financial crisis", "similarity": 0.75},
+            {"period": "2001", "event": "The Dot-com Crash", "similarity": 0.7},
+            {"period": "1973-1974", "event": "Oil crisis", "similarity": 0.65}
         ],
-        "Конец медвежьего рынка": [
-            {"period": "Q1 2009", "event": "Окончание финансового кризиса", "similarity": 0.8},
-            {"period": "Q4 2002", "event": "Окончание краха доткомов", "similarity": 0.75},
-            {"period": "1974", "event": "Окончание нефтяного кризиса", "similarity": 0.6}
+        "The End of the Bear Market": [
+            {"period": "Q1 2009", "event": "End of the financial crisis", "similarity": 0.8},
+            {"period": "Q4 2002", "event": "The end of the dot-com bust", "similarity": 0.75},
+            {"period": "1974", "event": "The end of the oil crisis", "similarity": 0.6}
         ],
-        "Начало бычьего рынка": [
-            {"period": "2009-2010", "event": "После финансового кризиса", "similarity": 0.85},
-            {"period": "2003", "event": "После краха доткомов", "similarity": 0.7},
-            {"period": "1975", "event": "После нефтяного кризиса", "similarity": 0.6}
+        "The beginning of the bull market": [
+            {"period": "2009-2010", "event": "After the financial crisis", "similarity": 0.85},
+            {"period": "2003", "event": "After the dotcom crash", "similarity": 0.7},
+            {"period": "1975", "event": "After the oil crisis", "similarity": 0.6}
         ],
-        "Рост инфляции и процентных ставок": [
-            {"period": "1970-1980", "event": "Десятилетие высокой инфляции", "similarity": 0.8},
-            {"period": "1994", "event": "Повышение ставок ФРС", "similarity": 0.7},
-            {"period": "2021-2022", "event": "Пост-пандемическая инфляция", "similarity": 0.9}
+        "Rising inflation and interest rates": [
+            {"period": "1970-1980", "event": "A Decade of High Inflation", "similarity": 0.8},
+            {"period": "1994", "event": "Fed Rate Hike", "similarity": 0.7},
+            {"period": "2021-2022", "event": "Post-pandemic inflation", "similarity": 0.9}
         ],
-        "Экономическая рецессия": [
-            {"period": "2008-2009", "event": "Великая рецессия", "similarity": 0.7},
-            {"period": "2001-2002", "event": "Рецессия после доткомов", "similarity": 0.6},
-            {"period": "1990-1991", "event": "Рецессия начала 90-х", "similarity": 0.5}
+        "Economic recession": [
+            {"period": "2008-2009", "event": "The Great Recession", "similarity": 0.7},
+            {"period": "2001-2002", "event": "Post-Dot-Com Recession", "similarity": 0.6},
+            {"period": "1990-1991", "event": "Recession of the early 90s", "similarity": 0.5}
         ],
-        "Геополитическая напряженность": [
-            {"period": "2022", "event": "Конфликт Россия-Украина", "similarity": 0.85},
-            {"period": "2001", "event": "9/11 и последствия", "similarity": 0.6},
-            {"period": "1990", "event": "Вторжение Ирака в Кувейт", "similarity": 0.5}
+        "Geopolitical tensions": [
+            {"period": "2022", "event": "Russia-Ukraine conflict", "similarity": 0.85},
+            {"period": "2001", "event": "9/11 and the aftermath", "similarity": 0.6},
+            {"period": "1990", "event": "Iraq's invasion of Kuwait", "similarity": 0.5}
         ]
     }
 
     if current_regime in historical_analogies:
-        st.subheader(f"Исторические аналогии для режима: {current_regime}")
+        st.subheader(f"Historical analogies for the regime: {current_regime}")
 
-        # Отображаем аналогии в виде таблицы
+        #We display analogies in the form of a table
         analogy_df = pd.DataFrame(historical_analogies[current_regime])
-        analogy_df['similarity'] = analogy_df['similarity'] * 100  # Преобразуем в проценты
+        analogy_df['similarity'] = analogy_df['similarity'] * 100
 
-        # Визуализация сходства исторических аналогий
+        # Visualization of the similarities of historical analogies
         fig_analogy = px.bar(
             analogy_df,
             x='period',
@@ -419,8 +419,8 @@ def historical_analogy_page():
             color='similarity',
             color_continuous_scale='Viridis',
             text='event',
-            title='Исторические аналогии и их сходство с текущей ситуацией',
-            labels={'period': 'Исторический период', 'similarity': 'Сходство (%)', 'event': 'Событие'}
+            title='Historical analogies and their similarities to the current situation',
+            labels={'period': 'Historical period', 'similarity': 'Similarity (%)', 'event': 'Event'}
         )
 
         fig_analogy.update_traces(textposition='outside')
@@ -428,227 +428,227 @@ def historical_analogy_page():
 
         st.plotly_chart(fig_analogy, use_container_width=True)
 
-        # Выбор исторического события для детального изучения
+        # Selecting a historical event for detailed study
         selected_period = st.selectbox(
-            "Выберите исторический период для детального изучения",
+            "Select a historical period for detailed study",
             options=analogy_df['period'].tolist(),
             format_func=lambda x: f"{x} - {analogy_df[analogy_df['period'] == x]['event'].values[0]}"
         )
 
-        # Показываем таблицу с извлеченными уроками
+        # Show a table of lessons learned
         historical_lessons = {
             "1970-1980": [
-                "Инфляция может сохраняться дольше, чем ожидается",
-                "Реальные активы превосходят финансовые активы во время высокой инфляции",
-                "Небольшие повышения ставок редко останавливают устоявшуюся инфляцию"
+                "Inflation May Last Longer Than Expected",
+                "Real Assets Outperform Financial Assets During High Inflation",
+                "Small Rate Hike Rarely Stops Steady Inflation"
             ],
             "1990-1991": [
-                "Геополитические шоки могут иметь краткосрочные, но сильные рыночные последствия",
-                "Высококачественные облигации и защитные акции предлагают лучшую защиту"
+                "Geopolitical shocks can have short-term but strong market impacts," 
+                "High-quality bonds and defensive stocks offer the best protection"
             ],
             "1994": [
-                "Внезапное повышение ставок может сильно повлиять на рынки облигаций",
-                "Короткая дюрация и плавающие ставки помогают защитить портфель облигаций"
+                "A sudden rate hike could have a big impact on bond markets",
+                "Short duration and floating rates help protect bond portfolios"
             ],
             "1999-2000": [
-                "Высокие оценки требуют высоких темпов роста для оправдания",
-                "Концентрация в одном секторе значительно увеличивает риск",
-                "Важность реальных прибылей, а не просто роста выручки"
+                "High valuations require high growth to justify",
+                "Concentration in one sector greatly increases risk",
+                "The importance of real earnings, not just revenue growth"
             ],
             "Q1 2000": [
-                "Пузыри обычно сдуваются быстрее, чем надуваются",
-                "Первая волна падения часто сменяется временным отскоком"
+                "Bubbles usually deflate faster than they inflate," 
+                "The first wave of decline is often followed by a temporary rebound."
             ],
             "2001": [
-                "Геополитические шоки могут ускорить уже начавшиеся рыночные тренды",
-                "Низкие оценки не защищают от краткосрочных шоков"
+                "Geopolitical shocks can accelerate already-started market trends",
+                "Low valuations do not protect against short-term shocks"
             ],
             "2001-2002": [
-                "Медвежьи рынки часто имеют несколько волн",
-                "Ложные ралли могут имитировать начало восстановления"
+                "Bear markets often have multiple waves," 
+                "Fake rallies can mimic the start of a recovery"
             ],
             "Q4 2002": [
-                "Рыночное дно часто формируется при максимальном пессимизме",
-                "Лидеры предыдущего цикла редко становятся лидерами нового цикла"
+                "Market bottoms often form when pessimism is at its peak",
+                "Leaders of the previous cycle rarely become leaders of the new cycle"
             ],
             "2003": [
-                "Новые бычьи рынки часто начинаются при плохих экономических новостях",
-                "Более рискованные активы обычно лидируют в начале нового цикла"
+                "New bull markets often start on bad economic news,"
+                "Riskier assets tend to lead at the start of a new cycle."
             ],
             "2007": [
-                "Низкая волатильность часто предшествует серьезным кризисам",
-                "Кредитные спреды часто являются лучшим индикатором, чем фондовые индексы"
+                "Low volatility often precedes major crises",
+                "Credit spreads are often a better indicator than stock indices"
             ],
             "Q4 2007": [
-                "Финансовые акции часто первыми показывают признаки проблем",
-                "Расширение кредитных спредов - ранний индикатор проблем"
+                "Financial stocks often show signs of trouble first",
+                "Widening credit spreads are an early indicator of trouble"
             ],
             "2008": [
-                "Корреляции активов стремятся к 1 в периоды серьезных кризисов",
-                "Сохранение ликвидности критически важно в серьезных кризисах"
+                "Asset correlations tend to 1 during periods of severe crises",
+                "Preserving liquidity is critical in severe crises"
             ],
             "2008-2009": [
-                "Слишком большой леверидж может разрушить даже качественные активы",
-                "Восстановление экономики часто отстает от восстановления рынка"
+                "Too much leverage can destroy even quality assets",
+                "Economic recovery often lags market recovery"
             ],
             "Q1 2009": [
-                "Рыночное дно часто происходит до прекращения плохих экономических новостей",
-                "Экстремально высокая волатильность может сигнализировать о приближении дна"
+                "Market bottoms often occur before bad economic news ends,"
+                "Extremely high volatility can signal a bottom is approaching"
             ],
             "2009-2010": [
-                "Ранние стадии бычьего рынка обычно сильные, но с откатами",
-                "Низкокачественные, более рискованные акции часто лидируют в начале подъема"
+                "Early stages of bull markets are usually strong, but with pullbacks,"
+                "Lower quality, riskier stocks often lead the way at the start of a rally."
             ],
             "1990": [
-                "Нефтяные шоки могут иметь каскадный эффект на всю экономику",
-                "Защитные секторы предлагают относительную безопасность"
+                "Oil shocks could have cascading effects across the economy",
+                "Defensive sectors offer relative safety"
             ],
             "1973-1974": [
-                "Комбинация геополитических шоков и инфляции особенно разрушительна",
-                "Диверсификация за пределами традиционных классов активов важна"
+                "The combination of geopolitical shocks and inflation is particularly damaging,"
+                "Diversification beyond traditional asset classes is important"
             ],
             "1974": [
-                "Лучшие инвестиционные возможности часто появляются в моменты максимального страха",
-                "Акции стоимости обычно лучше защищены в конце медвежьего рынка"
+                "The best investment opportunities often come at times of maximum fear,"
+                "Value stocks are usually better protected at the end of a bear market."
             ],
             "1975": [
-                "Восстановление может быть быстрым и сильным после глубоких распродаж",
-                "Инфляционные активы могут продолжать работать даже после пика инфляции"
+                "Recovery could be swift and strong after deep sell-offs",
+                "Inflationary assets could continue to perform even after inflation peaks"
             ],
             "1972": [
-                "Низкая безработица и высокий рост часто предшествуют инфляции",
-                "Ценовые пузыри на активах могут формироваться даже при умеренной инфляции"
+                "Low unemployment and high growth often precede inflation,"
+                "Asset price bubbles can form even with moderate inflation"
             ],
             "2021-2022": [
-                "Инфляционный шок может одновременно ударить по акциям и облигациям",
-                "Стоимостные акции могут превзойти акции роста в периоды роста инфляции",
-                "Корреляция между акциями и облигациями может стать положительной"
+                "Inflation Shock Could Hit Stocks and Bonds Together",
+                "Value Stocks Could Outperform Growth Stocks During Rising Inflation",
+                "Correlation Between Stocks and Bonds Could Turn Positive"
             ],
             "2022": [
-                "Энергетические кризисы особенно тяжелы для импортеров энергии",
-                "Геополитические риски часто недооцениваются рынками до тех пор, пока не материализуются",
-                "Сырьевые товары могут служить хеджированием от геополитических рисков"
+                "Energy crises are particularly hard on energy importers",
+                "Geopolitical risks are often underestimated by markets until they materialize",
+                "Commodities can serve as a hedge against geopolitical risks"
             ]
         }
 
         if selected_period in historical_lessons:
-            st.subheader(f"Уроки из периода {selected_period}")
+            st.subheader(f"Rocks from the period {selected_period}")
             for lesson in historical_lessons[selected_period]:
                 st.markdown(f"- {lesson}")
 
-            # Рекомендации для текущей стратегии
-            st.subheader("Рекомендации для текущей инвестиционной стратегии")
+            # Recommendations for the current strategy
+            st.subheader("Recommendations for the current investment strategy")
 
             recommendations = {
                 "1970-1980": [
-                    "Увеличить долю реальных активов (товары, недвижимость, TIPS)",
-                    "Сократить долю долгосрочных облигаций",
-                    "Отдавать предпочтение компаниям с сильной ценовой силой"
+                    "Increase the share of real assets (commodities, real estate, TIPS)",
+                    "Reduce the share of long-term bonds",
+                    "Favor companies with strong pricing power"
                 ],
                 "1990-1991": [
-                    "Увеличить аллокацию в высококачественные облигации",
-                    "Отдавать предпочтение компаниям с низким уровнем долга",
-                    "Рассмотреть защитные секторы (коммунальные услуги, потребительские товары)"
+                    "Increase allocation to high-quality bonds",
+                    "Favor companies with low debt",
+                    "Consider defensive sectors (utilities, consumer goods)"
                 ],
                 "1994": [
-                    "Сократить дюрацию облигаций",
-                    "Рассмотреть облигации с плавающей ставкой",
-                    "Увеличить долю денежных средств для будущих возможностей"
+                    "Reduce bond duration",
+                    "Consider floating rate bonds",
+                    "Increase cash for future opportunities"
                 ],
                 "1999-2000": [
-                    "Ребалансировать портфель от перегретых секторов",
-                    "Увеличить долю стоимостных акций",
-                    "Снизить концентрацию в технологическом секторе"
+                    "Rebalance portfolio away from overheated sectors",
+                    "Increase value stocks",
+                    "Reduce concentration in tech sector"
                 ],
                 "Q1 2000": [
-                    "Увеличить качество портфеля (компании с сильными балансами)",
-                    "Избегать ложных отскоков",
-                    "Постепенно наращивать позиции в защитных секторах"
+                    "Increase portfolio quality (companies with strong balance sheets)",
+                    "Avoid false rebounds",
+                    "Gradually increase positions in defensive sectors"
                 ],
                 "2001": [
-                    "Увеличить долю денежных средств",
-                    "Рассмотреть хеджирующие стратегии",
-                    "Сократить экспозицию к циклическим секторам"
+                    "Increase cash allocation",
+                    "Consider hedging strategies",
+                    "Reduce exposure to cyclical sectors"
                 ],
                 "2001-2002": [
-                    "Диверсифицировать портфель",
-                    "Избегать компаний с высоким долгом",
-                    "Фокусироваться на уровнях валюации, а не на моментуме"
+                    "Diversify your portfolio",
+                    "Avoid companies with high debt",
+                    "Focus on valuation levels, not momentum"
                 ],
                 "Q4 2002": [
-                    "Начать постепенно увеличивать долю акций",
-                    "Искать компании с сильными моделями и низкими оценками",
-                    "Рассмотреть малые компании для долгосрочных инвестиций"
+                    "Start gradually increasing the share of stocks",
+                    "Look for companies with strong models and low valuations",
+                    "Consider small companies for long-term investments"
                 ],
                 "2003": [
-                    "Увеличить долю циклических секторов",
-                    "Рассмотреть международные рынки, особенно развивающиеся",
-                    "Сократить долю денежных средств"
+                    "Increase the share of cyclical sectors",
+                    "Consider international markets, especially emerging markets",
+                    "Reduce the share of cash"
                 ],
                 "2007": [
-                    "Сократить экспозицию к финансовому сектору",
-                    "Увеличить качество кредитных инструментов",
-                    "Подготовиться к росту волатильности"
+                    "Reduce exposure to the financial sector",
+                    "Increase the quality of credit instruments",
+                    "Prepare for increased volatility"
                 ],
                 "Q4 2007": [
-                    "Увеличить долю денежных средств",
-                    "Сократить экспозицию к высоко-бета активам",
-                    "Рассмотреть защитные активы (золото, казначейские облигации)"
+                    "Increase cash exposure",
+                    "Reduce exposure to high-beta assets",
+                    "Consider safe havens (gold, treasuries)"
                 ],
                 "2008": [
-                    "Сохранять существенную часть портфеля в денежных средствах",
-                    "Отдавать предпочтение ликвидным инструментам",
-                    "Избегать использования кредитного плеча"
+                    "Keep a significant portion of the portfolio in cash",
+                    "Favor liquid instruments",
+                    "Avoid using leverage"
                 ],
                 "2008-2009": [
-                    "Фокусироваться на компаниях с низким долгом",
-                    "Избегать секторов, зависящих от потребительского кредитования",
-                    "Постепенно увеличивать позиции в качественных акциях"
+                    "Focus on companies with low debt",
+                    "Avoid sectors dependent on consumer credit",
+                    "Gradually increase positions in quality stocks"
                 ],
                 "Q1 2009": [
-                    "Начинать постепенно увеличивать экспозицию к рынку акций",
-                    "Искать акции с экстремально низкими оценками",
-                    "Рассмотреть корпоративные облигации с высоким рейтингом"
+                    "Start gradually increasing equity market exposure",
+                    "Look for stocks with extremely low valuations",
+                    "Consider highly rated corporate bonds"
                 ],
                 "2009-2010": [
-                    "Увеличить долю циклических секторов",
-                    "Рассмотреть малые компании",
-                    "Сократить долю защитных активов"
+                    "Increase cyclical sectors",
+                    "Consider small caps",
+                    "Reduce defensive assets"
                 ],
                 "1990": [
-                    "Хеджировать энергетические риски",
-                    "Увеличить долю защитных секторов",
-                    "Рассмотреть активы, связанные с безопасностью"
+                    "Hedge energy risks",
+                    "Increase the share of defensive sectors",
+                    "Consider security-related assets"
                 ],
                 "1973-1974": [
-                    "Увеличить долю реальных активов",
-                    "Сократить долю облигаций",
-                    "Отдавать предпочтение компаниям с стабильными денежными потоками"
+                    "Increase the share of real assets",
+                    "Reduce the share of bonds",
+                    "Give preference to companies with stable cash flows"
                 ],
                 "1974": [
-                    "Постепенно увеличивать экспозицию к акциям",
-                    "Фокусироваться на стоимостных акциях",
-                    "Искать компании с сильными балансами"
+                    "Gradually increase exposure to stocks",
+                    "Focus on value stocks",
+                    "Look for companies with strong balance sheets"
                 ],
                 "1975": [
-                    "Увеличить долю циклических секторов",
-                    "Рассмотреть малые компании",
-                    "Сохранять часть портфеля в реальных активах"
+                    "Increase the share of cyclical sectors",
+                    "Consider small companies",
+                    "Keep part of the portfolio in real assets"
                 ],
                 "1972": [
-                    "Подготовиться к росту инфляции",
-                    "Сократить долю акций роста с высокими мультипликаторами",
-                    "Рассмотреть реальные активы как защиту"
+                    "Prepare for rising inflation",
+                    "Reduce exposure to high-multiplier growth stocks",
+                    "Consider real assets as a hedge"
                 ],
                 "2021-2022": [
-                    "Сократить долю долгосрочных облигаций",
-                    "Увеличить долю стоимостных акций",
-                    "Рассмотреть активы с защитой от инфляции (TIPS, товары)"
+                    "Reduce long-term bonds",
+                    "Increase value stocks",
+                    "Consider inflation-protected assets (TIPS, commodities)"
                 ],
                 "2022": [
-                    "Диверсифицировать энергетические источники",
-                    "Рассмотреть компании в оборонном секторе",
-                    "Увеличить долю товарных активов"
+                    "Diversify energy sources",
+                    "Consider companies in the defense sector",
+                    "Increase the share of commodity assets"
                 ]
             }
 

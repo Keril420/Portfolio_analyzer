@@ -4,7 +4,7 @@ import pandas as pd
 import os
 import sys
 
-# Добавляем корень проекта в путь Python
+# Add the project root to the Python path
 sys.path.insert(0, os.path.abspath(os.path.dirname(os.path.dirname(__file__))))
 
 from src.utils.data_fetcher import DataFetcher, PortfolioDataManager
@@ -17,7 +17,7 @@ from src.utils.scenario_chaining import scenario_chaining_page
 from src.utils.advanced_visualizations import create_stress_impact_heatmap, create_interactive_stress_impact_chart, create_risk_tree_visualization
 from src.utils.historical_context import display_historical_context, historical_analogy_page
 
-# Настройка страницы
+# Page setup
 st.set_page_config(
     page_title="Portfolio Analyzer",
     page_icon="💼",
@@ -25,104 +25,187 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Инициализация состояния сессии
+# Initialize session state
 if 'current_page' not in st.session_state:
     st.session_state.current_page = "Главная"
 
 
 def main():
-    # Инициализация данных
+    # Initializing data
     data_fetcher = DataFetcher(cache_dir=str(config.CACHE_DIR), cache_expiry_days=config.CACHE_EXPIRY_DAYS)
     portfolio_manager = PortfolioDataManager(data_fetcher, storage_dir=str(config.PORTFOLIO_DIR))
 
-    # Задаем API ключи из конфигурации
+    # Set API keys from configuration
     if config.ALPHA_VANTAGE_API_KEY:
         data_fetcher.api_keys['alpha_vantage'] = config.ALPHA_VANTAGE_API_KEY
 
-    # Боковая панель навигации
-    st.sidebar.title("Навигация")
+    # Side navigation bar
+    st.sidebar.title("Navigation")
 
-    # Список страниц
+    # List of pages
     pages = [
-        "Главная",
-        "Создание портфеля",
-        "Анализ портфеля",
-        "Оптимизация портфеля",
-        "Цепочки стресс-событий",  # Новая страница
-        "Исторические аналогии"  # Новая страница
+        "Home",
+        "Portfolio creation",
+        "Portfolio analysis",
+        "Portfolio optimization",
+        "Chains of stressful events",
+        "Historical analogies"
     ]
 
-    # Выбор страницы
-    selected_page = st.sidebar.radio("Выберите раздел:", pages)
+    # Page selection
+    selected_page = st.sidebar.radio("Select section:", pages)
 
-    # Обновляем текущую страницу в состоянии сессии
+    # Refresh the current page in session state
     st.session_state.current_page = selected_page
 
-    # Отображение выбранной страницы
-    if selected_page == "Главная":
+    # Display the selected page
+    if selected_page == "Home":
         show_home_page(data_fetcher, portfolio_manager)
-    elif selected_page == "Создание портфеля":
+    elif selected_page == "Portfolio creation":
         portfolio_creation.run(data_fetcher, portfolio_manager)
-    elif selected_page == "Анализ портфеля":
+    elif selected_page == "Portfolio analysis":
         portfolio_analysis.run(data_fetcher, portfolio_manager)
-    elif selected_page == "Оптимизация портфеля":
+    elif selected_page == "Portfolio optimization":
         portfolio_optimization.run(data_fetcher, portfolio_manager)
-    elif selected_page == "Цепочки стресс-событий":
-        scenario_chaining_page()  # Новая страница
-    elif selected_page == "Исторические аналогии":
-        historical_analogy_page()  # Новая страница
+    elif selected_page == "Chains of stressful events":
+        scenario_chaining_page()
+    elif selected_page == "Historical analogies":
+        historical_analogy_page()
 
-    # Дополнительная информация в боковой панели
-    with st.sidebar.expander("О программе"):
+    # Additional information in the sidebar
+    with st.sidebar.expander("About the program"):
         st.write("""
-        **Система управления инвестиционным портфелем** позволяет создавать, 
-        анализировать и оптимизировать инвестиционные портфели с использованием 
-        различных стратегий и моделей.
-
-        Автор: Keril & Claude AI 
-        Версия: 1.0.0
+        The investment portfolio management system allows you to create, 
+        analyze and optimize investment portfolios
+        using various strategies and models.
+        
+        
+        Author: Wild Market Capital (@imnotkeril)
+        Version: 1.0.0
         """)
 
-    # Статус API
-    with st.sidebar.expander("Статус API"):
-        if config.ALPHA_VANTAGE_API_KEY:
-            st.success("Alpha Vantage API: Подключено")
+    # API Status
+    with st.sidebar.expander("API Status"):
+        # Checking the API key
+        if not config.ALPHA_VANTAGE_API_KEY:
+            st.warning("Alpha Vantage API: Not configured")
         else:
-            st.warning("Alpha Vantage API: Не настроено")
+            st.success("Alpha Vantage API: Connected")
 
-        # Отображаем счетчики вызовов API
-        st.write("Счетчики вызовов API:")
+        # Displaying API call counters
+        st.write("API Call Counters:")
         st.write(f"- yFinance: {data_fetcher.api_call_counts['yfinance']}")
         st.write(f"- Alpha Vantage: {data_fetcher.api_call_counts['alpha_vantage']}")
 
-        # Кнопка для очистки кеша
-        if st.button("Очистить кеш данных"):
+        # Clear cache button
+        if st.button("Clear data cache"):
             data_fetcher.clear_cache()
-            st.success("Кеш данных очищен!")
+            st.success("Data cache cleared!")
+
+
+def add_api_key_section(data_fetcher):
+    """
+    Add a section for API key management on the home page
+
+    Args:
+        data_fetcher: DataFetcher instance for API key management
+    """
+    st.subheader("🔑 API Key Configuration")
+
+    # Input for API key
+    api_key = st.text_input(
+        "Enter your Alpha Vantage API Key",
+        value=os.environ.get('ALPHA_VANTAGE_API_KEY', ''),
+        type="password",
+        help="Your API key will be used for enhanced data fetching"
+    )
+
+    # Buttons for API key management
+    col1, col2 = st.columns(2)
+
+    with col1:
+        if st.button("Save API Key"):
+            if api_key:
+                # Save to environment variable
+                os.environ['ALPHA_VANTAGE_API_KEY'] = api_key
+
+                # Update DataFetcher with new API key
+                data_fetcher.api_keys['alpha_vantage'] = api_key
+
+                # Update config
+                import src.config as config
+                config.ALPHA_VANTAGE_API_KEY = api_key
+
+                st.success("API Key saved successfully!")
+            else:
+                st.warning("Please enter a valid API key.")
+
+    with col2:
+        if st.button("Clear API Key"):
+            # Remove from environment variable
+            if 'ALPHA_VANTAGE_API_KEY' in os.environ:
+                del os.environ['ALPHA_VANTAGE_API_KEY']
+
+            # Clear from DataFetcher
+            data_fetcher.api_keys['alpha_vantage'] = ''
+
+            # Update config
+            import src.config as config
+            config.ALPHA_VANTAGE_API_KEY = ''
+
+            st.info("API Key cleared.")
+
+    # API Key Status
+    st.markdown("### Current API Key Status")
+    if data_fetcher.api_keys.get('alpha_vantage'):
+        st.success("✅ API Key is configured and active")
+    else:
+        st.warning("❌ No API Key configured")
+
+    # Explanation about API keys
+    st.markdown("""
+    To enhance the application's data fetching capabilities, you can provide an API key from Alpha Vantage.
+
+    ### How to Get an API Key:
+    1. Visit [Alpha Vantage Website](https://www.alphavantage.co/)
+    2. Click on "Get Your Free API Key Today"
+    3. Fill out the registration form
+    4. Copy the API key provided after registration
+
+    ### Benefits of Adding an API Key:
+    - Access to more detailed financial data
+    - Increased data fetch limits
+    - More comprehensive market information
+    - Enhanced search and lookup capabilities
+    """)
+
+
+
+
 
 
 def show_home_page(data_fetcher, portfolio_manager):
     """
-    Функция для отображения главной страницы
+    Function for displaying the main page
 
     Args:
-        data_fetcher: Экземпляр DataFetcher для загрузки данных
-        portfolio_manager: Экземпляр PortfolioDataManager для работы с портфелями
+        data_fetcher: DataFetcher instance for loading data
+        portfolio_manager: Portfolio DataManager instance for working with portfolios
     """
-    # Заголовок приложения
+    # Application Title
     st.title("Investment Portfolio Management System")
 
-    # Приветственный текст
+    # Welcome text
     st.write("""
     Welcome to our advanced portfolio management system! This application helps investors create, analyze, optimize, 
     and monitor investment portfolios using sophisticated financial models and interactive visualizations.
     """)
 
-    # Разделяем экран на две колонки
+    # Split the screen into two columns
     col1, col2 = st.columns(2)
 
     with col1:
-        # Краткий обзор функций
+        # Brief overview of functions
         st.subheader("Key Capabilities")
 
         st.markdown("""
@@ -152,43 +235,48 @@ def show_home_page(data_fetcher, portfolio_manager):
         """)
 
     with col2:
-        # Получаем список портфелей
+        # Get a list of portfolios
         portfolios = portfolio_manager.list_portfolios()
 
         st.subheader("Your Portfolios")
 
         if portfolios:
-            # Создаем таблицу с портфелями
+            # Create a table with portfolios
             portfolios_df = pd.DataFrame({
-                'Название': [p['name'] for p in portfolios],
-                'Активов': [p['asset_count'] for p in portfolios],
-                'Последнее обновление': [p['last_updated'] for p in portfolios]
+                'Name': [p['name'] for p in portfolios],
+                'Assets': [p['asset_count'] for p in portfolios],
+                'Last update': [p['last_updated'] for p in portfolios]
             })
 
             st.dataframe(portfolios_df, use_container_width=True)
 
-            # Кнопки для быстрых действий
+            # Quick Action Buttons
             st.subheader("Quick Actions")
 
             col1, col2 = st.columns(2)
 
             with col1:
                 if st.button("Create New Portfolio"):
-                    st.session_state.current_page = "Создание портфеля"
+                    st.session_state.current_page = "Portfolio creation"
                     st.experimental_rerun()
 
             with col2:
                 if st.button("Analyze Existing Portfolio"):
-                    st.session_state.current_page = "Анализ портфеля"
+                    st.session_state.current_page = "Portfolio analysis"
                     st.experimental_rerun()
         else:
             st.info("You don't have any portfolios yet. Start by creating your first portfolio.")
 
             if st.button("Create First Portfolio"):
-                st.session_state.current_page = "Создание портфеля"
+                st.session_state.current_page = "Portfolio creation"
                 st.experimental_rerun()
 
-    # Информационная секция
+        st.markdown("---")  # Separator
+        add_api_key_section(data_fetcher)
+
+
+
+    # Information section
     st.subheader("Getting Started")
 
     with st.expander("Guide for Beginners"):
@@ -232,6 +320,9 @@ def show_home_page(data_fetcher, portfolio_manager):
     This system combines modern portfolio theory, quantitative risk management, and interactive data visualization 
     to provide powerful insights for investment decision-making.
     """)
+
+
+
 
 
 if __name__ == "__main__":

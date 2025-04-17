@@ -1,5 +1,3 @@
-# src/utils/optimization.py
-
 import numpy as np
 import pandas as pd
 import scipy.optimize as sco

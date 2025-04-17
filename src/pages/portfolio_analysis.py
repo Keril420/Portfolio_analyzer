@@ -1,3 +1,5 @@
+import sys
+import os
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -9,13 +11,12 @@ from datetime import datetime, timedelta
 import calendar
 import logging
 logger = logging.getLogger(__name__)
-import sys
-import os
 
-# Добавляем корень проекта в путь Python
+
+# Add the project root to the Python path
 sys.path.insert(0, os.path.abspath(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))))
 
-# Используем абсолютные импорты
+# Using absolute imports
 from src.utils.calculations import PortfolioAnalytics
 from src.utils.risk_management import RiskManagement
 from src.utils.visualization import PortfolioVisualization
@@ -26,52 +27,47 @@ from src.utils.advanced_visualizations import create_stress_impact_heatmap, crea
 
 def get_delta_color(metric_name: str, portfolio_value: float, benchmark_value: float) -> str:
     """
-    Определяет цвет изменения (дельты) в зависимости от направления и типа метрики.
+    Defines the color of the change (delta) depending on the direction and type of metric.
 
-    Возвращает:
-        "normal" — стрелка вверх (зелёный цвет) — метрика лучше, чем бенчмарк.
-        "inverse" — стрелка вниз (красный цвет) — метрика хуже, чем бенчмарк.
+    Returns:
+        "normal" — up arrow (green) — metric is better than benchmark.
+        "inverse" — down arrow (red) — metric is worse than benchmark.
     """
     difference = portfolio_value - benchmark_value
 
-    lower_is_better = ['Волатильность', 'VAR (95%)', 'CVAR (95%)', 'Нисходящий захват']
+    lower_is_better = ['Volatility', 'VAR (95%)', 'CVAR (95%)', 'Down capture']
 
     if metric_name in lower_is_better:
-        return "inverse"  # Красный цвет, стрелка вниз
+        return "inverse"  # Red color, arrow down
 
     else:
-        return "normal"  # Зелёный цвет, стрелка вверх
+        return "normal"  # Green color, arrow up
 
 
-
-# Добавьте эту функцию для стилизации таблиц
 def style_dataframe(df, precision_dict=None):
     """
-    Форматирует DataFrame для отображения в Streamlit.
+    Formats a DataFrame for display in Streamlit.
 
     Args:
-        df: DataFrame для форматирования
-        precision_dict: Словарь форматирования для колонок, например {'колонка': '{:.2f}%'}
+        df: DataFrame for formatting
+        precision_dict: Formatting dictionary for columns, e.g. {'column': '{:.2f}%'}
 
     Returns:
-        Стилизованный DataFrame
+        Styled DataFrame
     """
     if precision_dict is None:
         precision_dict = {}
         for col in df.columns:
             if df[col].dtype in [np.float64, float, np.int64, int]:
-                if '%' in col or 'процент' in col.lower() or 'доходность' in col.lower():
+                if '%' in col or 'percent' in col.lower() or 'return' in col.lower():
                     precision_dict[col] = '{:.2f}%'
                 else:
                     precision_dict[col] = '{:.2f}'
 
-    # Создаем стилизованный DataFrame
     styled_df = df.style
 
-    # Применяем форматирование
     styled_df = styled_df.format(precision_dict)
 
-    # Центрируем все значения
     styled_df = styled_df.set_properties(**{
         'text-align': 'center',
         'vertical-align': 'middle'
@@ -80,35 +76,35 @@ def style_dataframe(df, precision_dict=None):
     return styled_df
 
 
-# Добавляем нашу новую функцию здесь
 def load_portfolio_data(data_fetcher, tickers, start_date_str, end_date_str, benchmark=None):
     """
-    Загружает исторические данные для списка тикеров и бенчмарка
+    Loads historical data for a list of tickers and a benchmark
 
     Args:
-        data_fetcher: Экземпляр DataFetcher
-        tickers: Список тикеров
-        start_date_str: Начальная дата в формате строки
-        end_date_str: Конечная дата в формате строки
-        benchmark: Тикер бенчмарка (опционально)
+        data_fetcher: DataFetcher instance
+        tickers: List of tickers
+        start_date_str: Start date as a string
+        end_date_str: End date as a string
+        benchmark: Benchmark ticker (optional)
 
     Returns:
-        Tuple с (close_prices, returns, valid_tickers, benchmark_returns, prices_data)
+        Tuple with (close_prices, returns, valid_tickers, benchmark_returns, prices_data)
     """
-    # Добавляем бенчмарк к списку тикеров для загрузки
+
+    # Add benchmark to the list of tickers for download
     if benchmark and benchmark not in tickers:
         tickers_to_load = tickers + [benchmark]
     else:
         tickers_to_load = tickers
 
-    # Загружаем исторические цены для всех активов
+    # Loading historical prices for all assets
     prices_data = data_fetcher.get_batch_data(tickers_to_load, start_date_str, end_date_str)
 
-    # Проверяем, что данные загружены успешно
+    # Check that the data was loaded successfully
     if not prices_data or all(df.empty for df in prices_data.values()):
-        raise ValueError("Не удалось загрузить исторические данные. Пожалуйста, проверьте тикеры или измените период.")
+        raise ValueError("Failed to load historical data. Please check tickers or change period..")
 
-    # Создаем DataFrame с ценами закрытия
+    # Create a DataFrame with closing prices
     close_prices = pd.DataFrame()
 
     for ticker, df in prices_data.items():
@@ -118,155 +114,154 @@ def load_portfolio_data(data_fetcher, tickers, start_date_str, end_date_str, ben
             elif 'Close' in df.columns:
                 close_prices[ticker] = df['Close']
 
-    # Рассчитываем доходности
+    # Calculating return
     returns = PortfolioAnalytics.calculate_returns(close_prices)
 
-    # Фильтруем тикеры, которые есть в данных
+    # Filter tickers that are in the data
     valid_tickers = [t for t in tickers if t in returns.columns]
 
-    # Если не все тикеры найдены, выдаем предупреждение
+    # If not all tickers are found, we issue a warning
     if len(valid_tickers) < len(tickers):
         missing_tickers = set(tickers) - set(valid_tickers)
-        logger.warning(f"Не найдены данные для следующих тикеров: {missing_tickers}")
+        logger.warning(f"No data found for the following tickers: {missing_tickers}")
 
-    # Рассчитываем бенчмарк доходность
+    # Calculate benchmark yield
     if benchmark and benchmark in returns.columns:
         benchmark_returns = returns[benchmark]
         benchmark_returns = benchmark_returns.dropna()
     else:
-        logger.warning(f"Бенчмарк {benchmark} отсутствует в данных доходности.")
-        benchmark_returns = pd.Series(dtype=float)  # Или другой способ обработки
+        logger.warning(f"Benchmark {benchmark} is missing from the return data.")
+        benchmark_returns = pd.Series(dtype=float)
 
     return close_prices, returns, valid_tickers, benchmark_returns, prices_data
 
-# Основная функция...
 def run(data_fetcher, portfolio_manager):
     """
-    Функция для отображения страницы анализа портфеля
+    Function to display the portfolio analysis page
 
     Args:
-        data_fetcher: Экземпляр DataFetcher для загрузки данных
-        portfolio_manager: Экземпляр PortfolioDataManager для работы с портфелями
+        data_fetcher: DataFetcher instance for loading data
+        portfolio_manager: PortfolioDataManager instance for working with portfolios
     """
-    st.title("Анализ портфеля")
+    st.title("Portfolio analysis")
 
-    # Получаем список портфелей
+    # Get a list of portfolios
     portfolios = portfolio_manager.list_portfolios()
 
     if not portfolios:
-        st.info("Портфели не найдены. Создайте портфель в разделе 'Создание портфеля'.")
+        st.info("No portfolios found. Create a portfolio in the 'Create portfolio' section.")
         return
 
-    # Выбор портфеля для анализа
+    # Selecting a portfolio for analysis
     portfolio_names = [p['name'] for p in portfolios]
-    selected_portfolio = st.selectbox("Выберите портфель для анализа", portfolio_names)
+    selected_portfolio = st.selectbox("Select a portfolio for analysis", portfolio_names)
 
     if not selected_portfolio:
         return
 
-    # Загружаем данные портфеля
+    #Loading portfolio data
     portfolio_data = portfolio_manager.load_portfolio(selected_portfolio)
 
-    # Отображаем основную информацию о портфеле
-    st.header(f"Портфель: {portfolio_data['name']}")
+    # Display basic information about the portfolio
+    st.header(f"Portfolio: {portfolio_data['name']}")
 
     if 'description' in portfolio_data and portfolio_data['description']:
         st.write(portfolio_data['description'])
 
-    st.write(f"Последнее обновление: {portfolio_data.get('last_updated', 'Неизвестно')}")
+    st.write(f"Last update: {portfolio_data.get('last_updated', 'Unknown')}")
 
-    # Параметры анализа
+    # Analysis parameters
     col1, col2, col3 = st.columns(3)
     with col1:
         benchmark = st.selectbox(
-            "Бенчмарк",
+            "Benchmark",
             ["SPY", "QQQ", "DIA", "IWM", "VTI"],
             index=0
         )
 
     with col2:
         start_date = st.date_input(
-            "Начальная дата",
+            "Start date",
             datetime.now() - timedelta(days=365)
         )
 
     with col3:
         end_date = st.date_input(
-            "Конечная дата",
+            "End date",
             datetime.now()
         )
 
-    # Обновление цен портфеля
+    # Portfolio price update
     update_col, refresh_col = st.columns([3, 1])
     with update_col:
-        if st.button("Обновить цены активов"):
+        if st.button("Update asset prices"):
             portfolio_data = portfolio_manager.update_portfolio_prices(portfolio_data)
             portfolio_manager.save_portfolio(portfolio_data)
-            st.success("Цены активов обновлены!")
+            st.success("Asset prices updated!")
 
     with refresh_col:
-        if st.button("Загрузить исторические данные", help="Загрузить исторические данные для выбранного периода"):
-            st.info("Загрузка исторических данных...")
+        if st.button("Download historical data", help="Download historical data for the selected period"):
+            st.info("Loading historical data...")
 
     tabs = st.tabs([
-        "Обзор портфеля",
-        "Доходность",
-        "Риск",
-        "Активы",
-        "Корреляции",
-        "Стресс-тестирование",
-        "Скользящие метрики",
-        "Расширенный анализ"
+        "Portfolio Overview",
+        "Return",
+        "Risk",
+        "Assets",
+        "Correlations",
+        "Stress Testing",
+        "Rolling Metrics",
+        "Advanced Analysis"
     ])
 
-    # Получаем тикеры из портфеля
+    # We get tickers from the portfolio
     tickers = [asset['ticker'] for asset in portfolio_data['assets']]
 
-    # Конвертируем даты в строки
+    # Convert dates to strings
     start_date_str = start_date.strftime('%Y-%m-%d')
     end_date_str = end_date.strftime('%Y-%m-%d')
 
-    with st.spinner('Загрузка исторических данных...'):
+    with st.spinner('Loading historical data...'):
         try:
-            # Используем новую функцию для загрузки данных
+            # Use the new function to load data
             close_prices, returns, valid_tickers, benchmark_returns, prices_data = load_portfolio_data(
                 data_fetcher, tickers, start_date_str, end_date_str, benchmark
             )
 
-            # Если не все тикеры найдены, выводим предупреждение
+            # If not all tickers are found, we display a warning
             if len(valid_tickers) < len(tickers):
                 missing_tickers = set(tickers) - set(valid_tickers)
-                st.warning(f"Не найдены данные для следующих тикеров: {', '.join(missing_tickers)}")
+                st.warning(f"No data found for the following tickers: {', '.join(missing_tickers)}")
 
-            # Рассчитываем веса из портфеля
+            # Calculate weights from the portfolio
             weights = {asset['ticker']: asset['weight'] for asset in portfolio_data['assets']}
 
-            # Рассчитываем доходность портфеля
+            # Calculating portfolio yield
             portfolio_returns = PortfolioAnalytics.calculate_portfolio_return(returns, weights)
 
         except ValueError as e:
             st.error(str(e))
             return
         except Exception as e:
-            st.error(f"Произошла ошибка при загрузке данных: {e}")
+            st.error(f"There was an error loading data: {e}")
             return
 
-    # Вкладка "Обзор портфеля"
+    # Portfolio Overview Tab
     with tabs[0]:
-        st.subheader("Обзор портфеля")
+        st.subheader("Portfolio overview")
 
-        # Рассчитываем метрики портфеля
-        with st.spinner('Расчет метрик портфеля...'):
+        # Calculating portfolio metrics
+        with st.spinner('Calculating portfolio metrics...'):
             portfolio_metrics = PortfolioAnalytics.calculate_portfolio_metrics(
                 portfolio_returns,
                 benchmark_returns,
                 risk_free_rate=config.RISK_FREE_RATE
             )
 
-        # Создаем несколько строк метрик
+        # Create multiple metrics lines
         col1, col2, col3, col4 = st.columns(4)
         with col1:
-            metric_name = "Общая доходность"
+            metric_name = "Annual Return"
             value = portfolio_metrics.get('total_return', 0) * 100
             benchmark_value = portfolio_metrics.get('benchmark_return',
                                                     0) * 100 if 'benchmark_return' in portfolio_metrics else None
@@ -285,7 +280,7 @@ def run(data_fetcher, portfolio_manager):
                 st.metric(metric_name, f"{value:.2f}%")
 
         with col2:
-            metric_name = "Годовая доходность"
+            metric_name = "Annual Return"
             value = portfolio_metrics.get('annualized_return', 0) * 100
             benchmark_value = portfolio_metrics.get('benchmark_annualized_return',
                                                     0) * 100 if 'benchmark_annualized_return' in portfolio_metrics else None
@@ -304,7 +299,7 @@ def run(data_fetcher, portfolio_manager):
                 st.metric(metric_name, f"{value:.2f}%")
 
         with col3:
-            metric_name = "Волатильность"
+            metric_name = "Volatility"
             value = portfolio_metrics.get('volatility', 0) * 100
             benchmark_value = portfolio_metrics.get('benchmark_volatility',
                                                     0) * 100 if 'benchmark_volatility' in portfolio_metrics else None
@@ -323,7 +318,7 @@ def run(data_fetcher, portfolio_manager):
                 st.metric(metric_name, f"{value:.2f}%")
 
         with col4:
-            metric_name = "Коэффициент Шарпа"
+            metric_name = "Sharpe ratio"
             value = portfolio_metrics.get('sharpe_ratio', 0)
             benchmark_value = portfolio_metrics.get('benchmark_sharpe_ratio',
                                                     0) if 'benchmark_sharpe_ratio' in portfolio_metrics else None
@@ -343,7 +338,7 @@ def run(data_fetcher, portfolio_manager):
 
         col1, col2, col3, col4 = st.columns(4)
         with col1:
-            metric_name = "Макс. просадка"
+            metric_name = "Max drawdown"
             value = -abs(portfolio_metrics.get('max_drawdown', 0)) * 100
             benchmark_value = -abs(portfolio_metrics.get('benchmark_max_drawdown', 0)) * 100 if 'benchmark_max_drawdown' in portfolio_metrics else None
 
@@ -352,18 +347,17 @@ def run(data_fetcher, portfolio_manager):
                 difference = value - benchmark_value
                 delta_color = get_delta_color(metric_name, value, benchmark_value)
 
-                # Теперь корректно отображаем разницу и цвет
                 st.metric(
                     metric_name,
-                    f"{value:.2f}%",  # Отображаем значение
-                    f"{difference:+.2f}%",  # Выводим разницу без знака "+"
+                    f"{value:.2f}%",
+                    f"{difference:+.2f}%",
                     delta_color=delta_color
                 )
             else:
                 st.metric(metric_name, f"{value:.2f}%")
 
         with col2:
-            metric_name = "Коэффициент Сортино"
+            metric_name = "Sortino ratio"
             value = portfolio_metrics.get('sortino_ratio', 0)
             benchmark_value = portfolio_metrics.get('benchmark_sortino_ratio',
                                                     0) if 'benchmark_sortino_ratio' in portfolio_metrics else None
@@ -382,7 +376,7 @@ def run(data_fetcher, portfolio_manager):
                 st.metric(metric_name, f"{value:.2f}%")
 
         with col3:
-            metric_name = "Бета"
+            metric_name = "Beta"
             value = portfolio_metrics.get('beta', 0)
 
             st.metric(
@@ -391,7 +385,7 @@ def run(data_fetcher, portfolio_manager):
             )
 
         with col4:
-            metric_name = "Альфа"
+            metric_name = "Alpha"
             value = portfolio_metrics.get('alpha', 0) * 100
 
             st.metric(
@@ -399,20 +393,20 @@ def run(data_fetcher, portfolio_manager):
                 f"{value:.2f}"
             )
 
-        # Комбинированный график производительности
-        st.subheader("Динамика портфеля")
+        # Combined Performance Graph
+        st.subheader("Portfolio dynamics")
 
-        # Создаем график с подграфиками
+        # Create a graph with subgraphs
         fig = make_subplots(
             rows=3,
             cols=1,
             shared_xaxes=True,
             vertical_spacing=0.03,
             row_heights=[0.5, 0.25, 0.25],
-            subplot_titles=("Кумулятивная доходность", "Просадки", "Дневная доходность")
+            subplot_titles=("Cumulative Return", "Drawdowns", "Daily Return")
         )
 
-        # 1. Кумулятивная доходность (верхний график)
+        # 1. Cumulative Return (top chart)
         cumulative_portfolio_returns = (1 + portfolio_returns).cumprod() - 1
         fig.add_trace(
             go.Scatter(
@@ -420,12 +414,11 @@ def run(data_fetcher, portfolio_manager):
                 y=cumulative_portfolio_returns.values * 100,
                 mode='lines',
                 line=dict(color='#1f77b4', width=2),
-                name='Портфель'
+                name='Portfolio'
             ),
             row=1, col=1
         )
 
-        # Добавляем бенчмарк, если есть
         if benchmark_returns is not None:
             cumulative_benchmark_returns = (1 + benchmark_returns).cumprod() - 1
             fig.add_trace(
@@ -439,12 +432,12 @@ def run(data_fetcher, portfolio_manager):
                 row=1, col=1
             )
 
-        # 2. Просадки (средний график)
+        # 2. Drawdowns (middle chart)
         cumulative_returns = (1 + portfolio_returns).cumprod()
         peak = cumulative_returns.cummax()
         drawdowns = (cumulative_returns / peak - 1) * 100
 
-        drawdowns = np.clip(drawdowns, -100, 0)  # Ограничение просадок
+        drawdowns = np.clip(drawdowns, -100, 0)
 
         fig.add_trace(
             go.Scatter(
@@ -454,12 +447,11 @@ def run(data_fetcher, portfolio_manager):
                 line=dict(color='#d62728', width=1.5),
                 fill='tozeroy',
                 fillcolor='rgba(214, 39, 40, 0.2)',
-                name='Просадки'
+                name='Drawdowns'
             ),
             row=2, col=1
         )
 
-        # Добавляем бенчмарк, если есть
         if benchmark_returns is not None:
             cumulative_benchmark = (1 + benchmark_returns).cumprod()
             peak_benchmark = cumulative_benchmark.cummax()
@@ -476,20 +468,20 @@ def run(data_fetcher, portfolio_manager):
                 row=2, col=1
             )
 
-        fig.update_yaxes(title_text="Просадка (%)", row=2, col=1)
+        fig.update_yaxes(title_text="Drawdown (%)", row=2, col=1)
 
-        # 3. Дневная доходность (нижний график)
+        #3. Daily yield (bottom chart)
         fig.add_trace(
             go.Bar(
                 x=portfolio_returns.index,
                 y=portfolio_returns.values * 100,
                 marker=dict(color='#2ca02c'),
-                name='Дневная доходность'
+                name='Daily yield'
             ),
             row=3, col=1
         )
 
-        # Обновляем настройки графика
+        # Updating the chart settings
         fig.update_layout(
             height=800,
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5),
@@ -497,26 +489,26 @@ def run(data_fetcher, portfolio_manager):
             hovermode="x unified"
         )
 
-        # Заголовки осей Y
-        fig.update_yaxes(title_text="Доходность (%)", row=1, col=1)
-        fig.update_yaxes(title_text="Просадка (%)", row=2, col=1)
-        fig.update_yaxes(title_text="Доходность (%)", row=3, col=1)
+        # Y Axis Titles
+        fig.update_yaxes(title_text="Return (%)", row=1, col=1)
+        fig.update_yaxes(title_text="Drawdown (%)", row=2, col=1)
+        fig.update_yaxes(title_text="Return (%)", row=3, col=1)
 
-        # Отображаем график
+        # Display the graph
         st.plotly_chart(fig, use_container_width=True)
 
-        # Отображаем структуру портфеля
-        st.subheader("Структура портфеля")
+        # Display the portfolio structure
+        st.subheader("Portfolio structure")
 
         col1, col2 = st.columns(2)
 
         with col1:
-            # Улучшенный график распределения активов
+            # Improved Asset Allocation Chart
             fig_weights = px.pie(
                 values=[asset['weight'] for asset in portfolio_data['assets']],
                 names=[asset['ticker'] for asset in portfolio_data['assets']],
-                title="Распределение по активам",
-                hole=0.4,  # Пончиковый график
+                title="Distribution by assets",
+                hole=0.4,
                 color_discrete_sequence=px.colors.qualitative.Plotly
             )
             fig_weights.update_traces(textposition='inside', textinfo='percent+label')
@@ -527,7 +519,7 @@ def run(data_fetcher, portfolio_manager):
             st.plotly_chart(fig_weights, use_container_width=True)
 
         with col2:
-            # Распределение по секторам, если доступно
+            # Sector distribution if available
             sectors = {}
             for asset in portfolio_data['assets']:
                 if 'sector' in asset and asset['sector'] != 'N/A':
@@ -541,8 +533,8 @@ def run(data_fetcher, portfolio_manager):
                 fig_sectors = px.pie(
                     values=list(sectors.values()),
                     names=list(sectors.keys()),
-                    title="Распределение по секторам",
-                    hole=0.4,  # Пончиковый график
+                    title="Distribution by sectors",
+                    hole=0.4,
                     color_discrete_sequence=px.colors.qualitative.Safe
                 )
                 fig_sectors.update_traces(textposition='inside', textinfo='percent+label')
@@ -552,24 +544,23 @@ def run(data_fetcher, portfolio_manager):
                 )
                 st.plotly_chart(fig_sectors, use_container_width=True)
 
-
-    # Вкладка "Доходность"
+    # Tab "Return"
     with tabs[1]:
-        st.subheader("Анализ доходности")
+        st.subheader("Return Analysis")
 
-        # Создаем подвкладки для разных видов анализа доходности
+        # Create sub-tabs for different types of Return analysis
         return_tabs = st.tabs([
-            "Кумулятивная доходность",
-            "Периодический анализ",
-            "Распределение доходности",
-            "Доходность по периодам"
+            "Cumulative Return",
+            "Periodic Analysis",
+            "Distribution of Return",
+            "Return by Periods"
         ])
 
         with return_tabs[0]:
-            # Улучшенный график кумулятивной доходности с логарифмической опцией
-            st.subheader("Кумулятивная доходность с бенчмарком")
 
-            log_scale = st.checkbox("Логарифмическая шкала", value=False)
+            st.subheader("Cumulative Return with Benchmark")
+
+            log_scale = st.checkbox("Logarithmic scale", value=False)
 
             cumulative_portfolio_returns = (1 + portfolio_returns).cumprod() - 1
 
@@ -579,7 +570,7 @@ def run(data_fetcher, portfolio_manager):
                 x=cumulative_portfolio_returns.index,
                 y=cumulative_portfolio_returns.values * 100,
                 mode='lines',
-                name='Портфель',
+                name='Portfolio',
                 line=dict(width=2, color='#1f77b4')
             ))
 
@@ -594,9 +585,9 @@ def run(data_fetcher, portfolio_manager):
                 ))
 
             fig.update_layout(
-                title='Кумулятивная доходность',
-                xaxis_title='Дата',
-                yaxis_title='Доходность (%)',
+                title='Cumulative Return',
+                xaxis_title='Date',
+                yaxis_title='Return (%)',
                 yaxis=dict(type='log' if log_scale else 'linear'),
                 legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
                 hovermode='x unified',
@@ -606,9 +597,9 @@ def run(data_fetcher, portfolio_manager):
             st.plotly_chart(fig, use_container_width=True)
 
         with return_tabs[1]:
-            st.subheader("Периодический анализ доходности")
+            st.subheader("Periodic return analysis")
 
-            # Рассчитываем годовую доходность при наличии DatetimeIndex
+            # Calculate annual yield with DatetimeIndex
             if isinstance(portfolio_returns.index, pd.DatetimeIndex):
                 annual_returns = portfolio_returns.resample('Y').apply(
                     lambda x: (1 + x).prod() - 1
@@ -620,13 +611,13 @@ def run(data_fetcher, portfolio_manager):
                         lambda x: (1 + x).prod() - 1
                     ) * 100
 
-                # График годовой доходности
+                # Annual Return Graph
                 fig_annual = go.Figure()
 
                 fig_annual.add_trace(go.Bar(
                     x=annual_returns.index.year,
                     y=annual_returns.values,
-                    name='Портфель',
+                    name='Portfolio',
                     marker_color='#1f77b4'
                 ))
 
@@ -639,9 +630,9 @@ def run(data_fetcher, portfolio_manager):
                     ))
 
                 fig_annual.update_layout(
-                    title='Годовая доходность',
-                    xaxis_title='Год',
-                    yaxis_title='Доходность (%)',
+                    title='Annual Return',
+                    xaxis_title='Year',
+                    yaxis_title='Return (%)',
                     barmode='group',
                     legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
                     hovermode='x unified'
@@ -649,16 +640,16 @@ def run(data_fetcher, portfolio_manager):
 
                 st.plotly_chart(fig_annual, use_container_width=True)
 
-                # Тепловая карта месячной доходности
+                # Heatmap of monthly returns
                 monthly_returns = PortfolioVisualization.create_monthly_returns_heatmap(portfolio_returns)
 
                 if not monthly_returns.empty:
-                    # Преобразуем в проценты для отображения
+                    # Convert to percentage for display
                     monthly_returns_pct = monthly_returns * 100
 
                     fig_heatmap = px.imshow(
                         monthly_returns_pct,
-                        labels=dict(x="Месяц", y="Год", color="Доходность (%)"),
+                        labels=dict(x="Month", y="Year", color="Return (%)"),
                         x=monthly_returns_pct.columns,
                         y=monthly_returns_pct.index,
                         color_continuous_scale='RdYlGn',
@@ -667,44 +658,43 @@ def run(data_fetcher, portfolio_manager):
                     )
 
                     fig_heatmap.update_layout(
-                        title='Календарь месячных доходностей (%)',
+                        title='Monthly Return Calendar (%)',
                         height=400
                     )
 
                     st.plotly_chart(fig_heatmap, use_container_width=True)
 
         with return_tabs[2]:
-            st.subheader("Распределение доходности")
+            st.subheader("Distribution of returns")
 
-            # Добавляем прямой импорт здесь
             from scipy import stats as scipy_stats
 
             col1, col2 = st.columns(2)
 
             with col1:
-                # Улучшенная гистограмма дневной доходности
+
                 fig_daily_dist = px.histogram(
                     portfolio_returns * 100,
                     nbins=40,
-                    title="Распределение дневной доходности",
-                    labels={'value': 'Доходность (%)', 'count': 'Частота'},
+                    title="Distribution of daily returns",
+                    labels={'value': 'Return (%)', 'count': 'Frequency'},
                     histnorm='probability density',
                     marginal='box',
                     color_discrete_sequence=['#1f77b4']
                 )
 
-                # Добавляем кривую нормального распределения
+                # Add a normal distribution curve
                 x = np.linspace(min(portfolio_returns * 100), max(portfolio_returns * 100), 100)
                 mean = (portfolio_returns * 100).mean()
                 std = (portfolio_returns * 100).std()
-                y = scipy_stats.norm.pdf(x, mean, std)  # Используем scipy_stats вместо stats
+                y = scipy_stats.norm.pdf(x, mean, std)
 
                 fig_daily_dist.add_trace(
                     go.Scatter(
                         x=x,
                         y=y,
                         mode='lines',
-                        name='Нормальное распределение',
+                        name='Normal distribution',
                         line=dict(color='red', dash='dash')
                     )
                 )
@@ -712,7 +702,7 @@ def run(data_fetcher, portfolio_manager):
                 st.plotly_chart(fig_daily_dist, use_container_width=True)
 
             with col2:
-                # Гистограмма месячной доходности, если доступна
+
                 if isinstance(portfolio_returns.index, pd.DatetimeIndex):
                     monthly_returns_series = portfolio_returns.resample('M').apply(
                         lambda x: (1 + x).prod() - 1
@@ -721,26 +711,26 @@ def run(data_fetcher, portfolio_manager):
                     fig_monthly_dist = px.histogram(
                         monthly_returns_series,
                         nbins=20,
-                        title="Распределение месячной доходности",
-                        labels={'value': 'Доходность (%)', 'count': 'Частота'},
+                        title="Distribution of monthly returns",
+                        labels={'value': 'Return (%)', 'count': 'Frequency'},
                         histnorm='probability density',
                         marginal='box',
                         color_discrete_sequence=['#2ca02c']
                     )
 
-                    # Добавляем кривую нормального распределения для месячной доходности
+                    # Add a normal distribution curve for monthly returns
                     x_monthly = np.linspace(min(monthly_returns_series), max(monthly_returns_series), 100)
                     mean_monthly = monthly_returns_series.mean()
                     std_monthly = monthly_returns_series.std()
                     y_monthly = scipy_stats.norm.pdf(x_monthly, mean_monthly,
-                                                     std_monthly)  # Используем scipy_stats вместо stats
+                                                     std_monthly)
 
                     fig_monthly_dist.add_trace(
                         go.Scatter(
                             x=x_monthly,
                             y=y_monthly,
                             mode='lines',
-                            name='Нормальное распределение',
+                            name='Normal distribution',
                             line=dict(color='red', dash='dash')
                         )
                     )
@@ -748,28 +738,25 @@ def run(data_fetcher, portfolio_manager):
                     st.plotly_chart(fig_monthly_dist, use_container_width=True)
 
         with return_tabs[3]:
-            st.subheader("Доходность по периодам")
+            st.subheader("Return by periods")
 
-            # Анализ доходности по различным периодам
             if isinstance(portfolio_returns.index, pd.DatetimeIndex):
                 period_returns = PortfolioAnalytics.calculate_period_performance(portfolio_returns)
 
                 if benchmark_returns is not None:
                     benchmark_period_returns = PortfolioAnalytics.calculate_period_performance(benchmark_returns)
 
-                    # Создаем DataFrame для сравнения
                     periods_data = []
                     for period in period_returns:
                         periods_data.append({
-                            'Период': period,
-                            'Портфель (%)': period_returns[period] * 100,
-                            'Бенчмарк (%)': benchmark_period_returns.get(period, 0) * 100,
-                            'Разница (%)': (period_returns[period] - benchmark_period_returns.get(period, 0)) * 100
+                            'Period': period,
+                            'Portfolio (%)': period_returns[period] * 100,
+                            'Benchmark (%)': benchmark_period_returns.get(period, 0) * 100,
+                            'Difference (%)': (period_returns[period] - benchmark_period_returns.get(period, 0)) * 100
                         })
 
                     periods_df = pd.DataFrame(periods_data)
 
-                    # Стилизуем DataFrame
                     def highlight_diff(val):
                         if isinstance(val, float):
                             if val > 0:
@@ -779,10 +766,10 @@ def run(data_fetcher, portfolio_manager):
                         return ''
 
                     styled_df = periods_df.style.format({
-                        'Портфель (%)': '{:.2f}%',
-                        'Бенчмарк (%)': '{:.2f}%',
-                        'Разница (%)': '{:.2f}%'
-                    }).applymap(highlight_diff, subset=['Разница (%)'])
+                        'Portfolio (%)': '{:.2f}%',
+                        'Benchmark (%)': '{:.2f}%',
+                        'Difference (%)': '{:.2f}%'
+                    }).applymap(highlight_diff, subset=['Difference (%)'])
 
                     st.dataframe(
                         styled_df,
@@ -790,28 +777,27 @@ def run(data_fetcher, portfolio_manager):
                         height=min(35 * (len(periods_df) + 1), 300)
                     )
 
-                    # Визуализация сравнения
+                    # Visual comparison
                     fig_periods = px.bar(
                         periods_df,
-                        x='Период',
-                        y=['Портфель (%)', 'Бенчмарк (%)'],
+                        x='Period',
+                        y=['Portfolio (%)', 'Benchmark (%)'],
                         barmode='group',
-                        title='Сравнение доходности по периодам',
-                        labels={'value': 'Доходность (%)', 'variable': ''}
+                        title='Comparison of returns by periods',
+                        labels={'value': 'Return (%)', 'variable': ''}
                     )
 
                     st.plotly_chart(fig_periods, use_container_width=True)
 
-                    # Лучшие и худшие периоды
-                    st.subheader("Лучшие и худшие периоды")
+                    st.subheader("The best and the worst periods")
 
                     worst_periods = PortfolioVisualization.create_worst_periods_table(
                         portfolio_returns, benchmark_returns
                     )
 
                     if not worst_periods.empty:
-                        # Форматируем числовые колонки
-                        for col in ['Доходность', 'Бенчмарк', 'Разница']:
+                        # Format numeric columns
+                        for col in ['Return', 'Benchmark', 'Difference']:
                             worst_periods[col] = worst_periods[col].apply(lambda x: f"{x * 100:.2f}%")
 
                         st.dataframe(
@@ -823,26 +809,25 @@ def run(data_fetcher, portfolio_manager):
                             height=min(35 * (len(worst_periods) + 1), 300)
                         )
 
-    # Вкладка "Риск"
+    # Risk tab
     with tabs[2]:
-        st.subheader("Анализ риска")
+        st.subheader("Risk analysis")
 
-        # Создаем подвкладки для разных видов анализа риска
         risk_tabs = st.tabs([
-            "Основные метрики",
-            "Анализ просадок",
-            "VaR и CVaR",
-            "Вклад в риск"
+            "Key metrics",
+            "Drawdown Analysis",
+            "VaR and CVaR",
+            "Impact on risk"
         ])
 
         with risk_tabs[0]:
-            st.subheader("Основные метрики риска")
+            st.subheader("Key risk metrics")
 
-            # Сравнение метрик риска с бенчмарком
+            # Comparison of risk metrics with benchmark
             col1, col2, col3, col4 = st.columns(4)
 
             with col1:
-                metric_name = "Волатильность"
+                metric_name = "Volatility"
                 value = portfolio_metrics.get('volatility', 0) * 100
                 benchmark_value = portfolio_metrics.get('benchmark_volatility',
                                                         0) * 100 if 'benchmark_volatility' in portfolio_metrics else None
@@ -861,7 +846,7 @@ def run(data_fetcher, portfolio_manager):
                     st.metric(metric_name, f"{value:.2f}%")
 
             with col2:
-                metric_name = "Макс. просадка"
+                metric_name = "Max drawdown"
                 value = -abs(portfolio_metrics.get('max_drawdown', 0)) * 100
                 benchmark_value = -abs(portfolio_metrics.get('benchmark_max_drawdown', 0)) * 100 if 'benchmark_max_drawdown' in portfolio_metrics else None
 
@@ -879,7 +864,7 @@ def run(data_fetcher, portfolio_manager):
                     st.metric(metric_name, f"{value:.2f}%")
 
             with col3:
-                metric_name = "Коэффициент Сортино"
+                metric_name = "Sortino ratio"
                 value = portfolio_metrics.get('sortino_ratio', 0)
                 benchmark_value = portfolio_metrics.get('benchmark_sortino_ratio',
                                                         0) if 'benchmark_sortino_ratio' in portfolio_metrics else None
@@ -898,7 +883,7 @@ def run(data_fetcher, portfolio_manager):
                     st.metric(metric_name, f"{value:.2f}%")
 
             with col4:
-                metric_name = "Коэффициент Кальмара"
+                metric_name = "Calmar Ratio"
                 value = portfolio_metrics.get('calmar_ratio', 0)
                 benchmark_value = portfolio_metrics.get('bbenchmark_calmar_ratio',
                                                         0) if 'benchmark_calmar_ratio' in portfolio_metrics else None
@@ -957,7 +942,7 @@ def run(data_fetcher, portfolio_manager):
                     st.metric(metric_name, f"{value:.2f}%")
 
             with col3:
-                metric_name = "Восходящий захват"
+                metric_name = "Up capture"
                 value = portfolio_metrics.get('up_capture', 0)
 
                 st.metric(
@@ -967,7 +952,7 @@ def run(data_fetcher, portfolio_manager):
                 )
 
             with col4:
-                metric_name = "Нисходящий захват"
+                metric_name = "Down capture"
                 value = portfolio_metrics.get('down_capture', 0)
 
                 st.metric(
@@ -977,8 +962,8 @@ def run(data_fetcher, portfolio_manager):
                     delta_color="inverse"
                 )
 
-            # График риск/доходность
-            st.subheader("Соотношение риск/доходность")
+            # Risk/reward chart
+            st.subheader("Risk/reward ratio")
 
             fig_risk_return = go.Figure()
 
@@ -987,7 +972,7 @@ def run(data_fetcher, portfolio_manager):
                 y=[portfolio_metrics.get('annualized_return', 0) * 100],
                 mode='markers',
                 marker=dict(size=15, color='blue'),
-                name='Портфель'
+                name='Portfolio'
             ))
 
             if 'benchmark_volatility' in portfolio_metrics and 'benchmark_annualized_return' in portfolio_metrics:
@@ -999,10 +984,10 @@ def run(data_fetcher, portfolio_manager):
                     name=benchmark
                 ))
 
-            # Добавляем безрисковую ставку
+            # Add a risk-free rate
             risk_free = config.RISK_FREE_RATE * 100
 
-            # Добавляем Capital Market Line
+            # Add a Capital Market Line
             x_range = np.linspace(0, max(portfolio_metrics.get('volatility', 0) * 100 * 1.5,
                                          portfolio_metrics.get('benchmark_volatility',
                                                                0) * 100 * 1.5 if 'benchmark_volatility' in portfolio_metrics else 0),
@@ -1020,9 +1005,9 @@ def run(data_fetcher, portfolio_manager):
                 ))
 
             fig_risk_return.update_layout(
-                title='Риск/Доходность',
-                xaxis_title='Риск (Волатильность, %)',
-                yaxis_title='Доходность (%)',
+                title='Risk/Return',
+                xaxis_title='Risk (Volatility, %)',
+                yaxis_title='Return (%)',
                 legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
                 height=500
             )
@@ -1030,9 +1015,8 @@ def run(data_fetcher, portfolio_manager):
             st.plotly_chart(fig_risk_return, use_container_width=True)
 
         with risk_tabs[1]:
-            st.subheader("Анализ просадок")
+            st.subheader("Drawdown Analysis")
 
-            # Улучшенный график просадок
             cumulative_returns = (1 + portfolio_returns).cumprod()
             peak = cumulative_returns.cummax()
             drawdowns = (cumulative_returns / peak - 1) * 100
@@ -1046,7 +1030,7 @@ def run(data_fetcher, portfolio_manager):
                 fill='tozeroy',
                 fillcolor='rgba(214, 39, 40, 0.2)',
                 line=dict(color='#d62728'),
-                name='Портфель'
+                name='Portfolio'
             ))
 
             if benchmark_returns is not None:
@@ -1063,54 +1047,53 @@ def run(data_fetcher, portfolio_manager):
                 ))
 
             fig_drawdown.update_layout(
-                title='Просадки',
-                xaxis_title='Дата',
-                yaxis_title='Просадка (%)',
+                title='Drawdowns',
+                xaxis_title='Date',
+                yaxis_title='Drawdown (%)',
                 legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
                 height=500
             )
 
             st.plotly_chart(fig_drawdown, use_container_width=True)
 
-            # Детальный анализ просадок
-            st.subheader("Топ-5 просадок")
+            # Detailed analysis of drawdowns
+            st.subheader("Top 5 Drawdowns")
 
             drawdown_analysis = RiskManagement.analyze_drawdowns(portfolio_returns)
 
             if not drawdown_analysis.empty:
-                # Сортируем по глубине (сначала самые большие просадки) и берем топ-5
+                # Sort by depth (biggest drawdowns first) and take the top 5
                 top_drawdowns = drawdown_analysis.sort_values(['depth', 'start_date'], ascending=[True, False]).head(5)
 
-                # Форматируем для отображения
                 display_drawdowns = pd.DataFrame({
-                    'Начало': top_drawdowns['start_date'].dt.strftime('%Y-%m-%d'),
-                    'Дно': top_drawdowns['valley_date'].dt.strftime('%Y-%m-%d'),
-                    'Восстановление': top_drawdowns['recovery_date'].fillna('В процессе').apply(
-                        lambda x: x.strftime('%Y-%m-%d') if x != 'В процессе' else x
+                    'Start': top_drawdowns['start_date'].dt.strftime('%Y-%m-%d'),
+                    'Bottom': top_drawdowns['valley_date'].dt.strftime('%Y-%m-%d'),
+                    'Recovery': top_drawdowns['recovery_date'].fillna('In progress').apply(
+                        lambda x: x.strftime('%Y-%m-%d') if x != 'In progress' else x
                     ),
-                    'Глубина (%)': top_drawdowns['depth'] * 100,
-                    'Длительность (дней)': top_drawdowns['length'],
-                    'Восстановление (дней)': top_drawdowns['recovery']
+                    'Depth (%)': top_drawdowns['depth'] * 100,
+                    'Duration (days)': top_drawdowns['length'],
+                    'Recovery (days)': top_drawdowns['recovery']
                 })
 
                 st.dataframe(
                     style_dataframe(display_drawdowns, {
-                        'Глубина (%)': '{:.2f}%',
-                        'Длительность (дней)': '{:.0f}',
-                        'Восстановление (дней)': '{:.0f}'
+                        'Depth (%)': '{:.2f}%',
+                        'Duration (days)': '{:.0f}',
+                        'Recovery (days)': '{:.0f}'
                     }),
                     use_container_width=True,
                     height=min(35 * (len(display_drawdowns) + 1), 300)
                 )
 
             with risk_tabs[2]:
-                st.subheader("Value at Risk (VaR) и Conditional VaR (CVaR)")
+                st.subheader("Value at Risk (VaR) and Conditional VaR (CVaR)")
 
                 col1, col2 = st.columns(2)
 
                 with col1:
                     confidence_level = st.slider(
-                        "Уровень доверия",
+                        "Trust level",
                         min_value=90,
                         max_value=99,
                         value=95,
@@ -1118,7 +1101,7 @@ def run(data_fetcher, portfolio_manager):
                         format="%d%%"
                     ) / 100
 
-                    # Рассчитываем VaR разными методами
+                    # Calculating VaR using different methods
                     var_hist = RiskManagement.calculate_var_historical(portfolio_returns,
                                                                        confidence_level=confidence_level)
                     var_param = RiskManagement.calculate_var_parametric(portfolio_returns,
@@ -1127,35 +1110,35 @@ def run(data_fetcher, portfolio_manager):
                                                                       confidence_level=confidence_level)
                     cvar = RiskManagement.calculate_cvar(portfolio_returns, confidence_level=confidence_level)
 
-                    # Создаем таблицу с VaR
+                    # Create a table with VaR
                     var_data = [
-                        {"Метод": "Исторический", "Значение (%)": var_hist * 100},
-                        {"Метод": "Параметрический", "Значение (%)": var_param * 100},
-                        {"Метод": "Монте-Карло", "Значение (%)": var_mc * 100},
-                        {"Метод": "CVaR", "Значение (%)": cvar * 100}
+                        {"Method": "Historical", "Meaning (%)": var_hist * 100},
+                        {"Method": "Parametric", "Meaning (%)": var_param * 100},
+                        {"Method": "Monte Carlo", "Meaning (%)": var_mc * 100},
+                        {"Method": "CVaR", "Meaning (%)": cvar * 100}
                     ]
 
                     var_df = pd.DataFrame(var_data)
 
                     st.dataframe(
                         style_dataframe(var_df, {
-                            'Значение (%)': '{:.2f}%'
+                            'Meaning (%)': '{:.2f}%'
                         }),
                         use_container_width=True,
                         height=min(35 * (len(var_df) + 1), 200)
                     )
 
                 with col2:
-                    # Визуализация VaR на распределении доходностей
+                    # Visualization of VaR on the distribution of returns
                     fig_var = px.histogram(
                         portfolio_returns * 100,
                         nbins=50,
-                        title=f"Value at Risk при {confidence_level * 100:.0f}% уровне доверия",
-                        labels={'value': 'Дневная доходность (%)', 'count': 'Частота'},
+                        title=f"Value at Risk at {confidence_level * 100:.0f}% confidence level",
+                        labels={'value': 'Daily return (%)', 'count': 'Frequency'},
                         color_discrete_sequence=['lightskyblue']
                     )
 
-                    # Добавляем линию VaR
+                    # Add VaR line
                     fig_var.add_vline(
                         x=-var_hist * 100,
                         line_width=2,
@@ -1165,7 +1148,7 @@ def run(data_fetcher, portfolio_manager):
                         annotation_position="top right"
                     )
 
-                    # Добавляем линию CVaR
+                    # Add the CVaR line
                     fig_var.add_vline(
                         x=-cvar * 100,
                         line_width=2,
@@ -1176,79 +1159,79 @@ def run(data_fetcher, portfolio_manager):
                     )
 
                     fig_var.update_layout(
-                        xaxis_title='Дневная доходность (%)',
-                        yaxis_title='Частота',
+                        xaxis_title='Daily return (%)',
+                        yaxis_title='Frequency',
                         showlegend=False
                     )
 
                     st.plotly_chart(fig_var, use_container_width=True)
 
             with risk_tabs[3]:
-                st.subheader("Вклад в риск")
+                st.subheader("Impact on risk")
 
-                # Расчет вклада в риск
+                # Calculation of Impact on risk
                 risk_contribution = RiskManagement.calculate_risk_contribution(returns, weights)
 
                 if risk_contribution:
-                    # Сортируем по вкладу в риск (по убыванию)
+                    # Sort by Impact on risk (descending)
                     risk_contrib_sorted = {k: v for k, v in
                                            sorted(risk_contribution.items(), key=lambda item: item[1], reverse=True)}
 
-                    # Создаем DataFrame
+                    # Create a DataFrame
                     risk_contrib_df = pd.DataFrame({
-                        'Актив': list(risk_contrib_sorted.keys()),
-                        'Вклад в риск (%)': [v * 100 for v in risk_contrib_sorted.values()]
+                        'Asset': list(risk_contrib_sorted.keys()),
+                        'Impact on risk (%)': [v * 100 for v in risk_contrib_sorted.values()]
                     })
 
-                    # Визуализация вклада в риск
+                    # Visualization of risk impact
                     fig_risk_contrib = px.bar(
                         risk_contrib_df,
-                        x='Актив',
-                        y='Вклад в риск (%)',
-                        title='Вклад активов в общий риск портфеля',
-                        color='Вклад в риск (%)',
+                        x='Asset',
+                        y='Impact on risk (%)',
+                        title='Impact on assets to the overall portfolio risk',
+                        color='Impact on risk (%)',
                         color_continuous_scale='viridis'
                     )
 
                     st.plotly_chart(fig_risk_contrib, use_container_width=True)
 
-                    # Сравнение вклада в риск с весами
+                    # Comparison of risk Impact with weights
                     compare_df = pd.DataFrame({
-                        'Актив': list(risk_contrib_sorted.keys()),
-                        'Вклад в риск (%)': [risk_contrib_sorted[t] * 100 for t in risk_contrib_sorted],
-                        'Вес (%)': [weights.get(t, 0) * 100 for t in risk_contrib_sorted]
+                        'Asset': list(risk_contrib_sorted.keys()),
+                        'Impact on risk (%)': [risk_contrib_sorted[t] * 100 for t in risk_contrib_sorted],
+                        'Weight (%)': [weights.get(t, 0) * 100 for t in risk_contrib_sorted]
                     })
 
                     fig_risk_weight = go.Figure()
 
                     fig_risk_weight.add_trace(go.Bar(
-                        x=compare_df['Актив'],
-                        y=compare_df['Вклад в риск (%)'],
-                        name='Вклад в риск (%)',
+                        x=compare_df['Asset'],
+                        y=compare_df['Impact on risk (%)'],
+                        name='Impact on risk (%)',
                         marker_color='#1f77b4'
                     ))
 
                     fig_risk_weight.add_trace(go.Bar(
-                        x=compare_df['Актив'],
-                        y=compare_df['Вес (%)'],
-                        name='Вес (%)',
+                        x=compare_df['Asset'],
+                        y=compare_df['Weight (%)'],
+                        name='Weight (%)',
                         marker_color='#ff7f0e'
                     ))
 
                     fig_risk_weight.update_layout(
-                        title='Сравнение вклада в риск и веса активов',
-                        xaxis_title='Актив',
-                        yaxis_title='Процент (%)',
+                        title='Comparison of risk impact and asset weighting',
+                        xaxis_title='Asset',
+                        yaxis_title='Percent (%)',
                         barmode='group',
                         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
                     )
 
                     st.plotly_chart(fig_risk_weight, use_container_width=True)
 
-                    # Диверсификация портфеля
-                    st.subheader("Оценка диверсификации")
+                    # Portfolio diversification
+                    st.subheader("Diversification Assessment")
 
-                    # Рассчитываем коэффициент диверсификации
+                    # Calculate the diversification coefficient
                     portfolio_vol = portfolio_metrics.get('volatility', 0)
                     weighted_vol = sum([weights.get(ticker, 0) * returns[ticker].std() * np.sqrt(252)
                                         for ticker in weights if ticker in returns.columns])
@@ -1256,57 +1239,57 @@ def run(data_fetcher, portfolio_manager):
                     diversification_ratio = weighted_vol / portfolio_vol if portfolio_vol > 0 else 0
 
                     st.metric(
-                        "Коэффициент диверсификации",
+                        "Diversification coefficient",
                         f"{diversification_ratio:.2f}",
-                        "Выше - лучше"
+                        "Higher is better"
                     )
 
                     st.info("""
-                        **Коэффициент диверсификации** показывает отношение взвешенной суммы волатильностей 
-                        отдельных активов к общей волатильности портфеля. Значение выше 1 указывает на 
-                        положительный эффект диверсификации.
+                        **The diversification coefficient** shows the ratio of the weighted sum of the volatilities 
+                        of individual assets to the total volatility of the portfolio. A value above 1 indicates 
+                        a positive diversification effect.
                         """)
 
     with tabs[3]:
-        st.subheader("Анализ активов")
+        st.subheader("Assets Analysis")
 
-        # Создаем подвкладки для разных видов анализа активов
+        # Create sub-tabs for different types of asset analysis
         assets_tabs = st.tabs([
-            "Обзор активов",
-            "Вклад активов",
-            "Динамика цен",
-            "Анализ актива"
+            "Asset overview",
+            "Asset impact",
+            "Price dynamics",
+            "Asset Analysis"
         ])
 
         with assets_tabs[0]:
-            # Отображение списка активов
+            # Displaying a list of assets
             assets_data = []
             for asset in portfolio_data['assets']:
                 asset_row = {
-                    'Тикер': asset['ticker'],
-                    'Вес (%)': asset['weight'] * 100  # Сохраняем как число для правильного форматирования
+                    'Ticker': asset['ticker'],
+                    'Weight (%)': asset['weight'] * 100
                 }
 
-                # Добавляем доступную информацию
+                # Adding accessible information
                 for field in ['name', 'sector', 'industry', 'asset_class', 'currency']:
                     if field in asset:
                         asset_row[field.capitalize()] = asset[field]
 
                 if 'current_price' in asset:
-                    asset_row['Текущая цена'] = asset['current_price']
+                    asset_row['Current price'] = asset['current_price']
 
                 if 'price_change_pct' in asset:
-                    asset_row['Изменение (%)'] = asset['price_change_pct']  # Сохраняем как число
+                    asset_row['Price change (%)'] = asset['price_change_pct']
 
                 assets_data.append(asset_row)
 
             assets_df = pd.DataFrame(assets_data)
 
-            # Определяем словарь форматирования
+            # Define the formatting dictionary
             format_dict = {
-                'Вес (%)': '{:.2f}%',
-                'Текущая цена': '{:.2f}',
-                'Изменение (%)': '{:.2f}%'
+                'Weight (%)': '{:.2f}%',
+                'Current price': '{:.2f}',
+                'Price change (%)': '{:.2f}%'
             }
 
             st.dataframe(
@@ -1317,12 +1300,12 @@ def run(data_fetcher, portfolio_manager):
 
             if len(portfolio_data['assets']) > 10:
                 st.warning(
-                    f"Портфель содержит {len(portfolio_data['assets'])} активов. Для лучшей диверсификации рекомендуется не более 20-25 активов.")
+                    f"The portfolio contains {len(portfolio_data['assets'])} assets. For better diversification, no more than 20-25 assets are recommended.")
 
         with assets_tabs[1]:
-            st.subheader("Вклад активов в доходность и риск")
+            st.subheader("Impact on assets to return and risk")
 
-            # Рассчитываем вклад каждого актива в общую доходность
+
             cumulative_returns = {}
             weights_dict = {asset['ticker']: asset['weight'] for asset in portfolio_data['assets']}
 
@@ -1332,25 +1315,25 @@ def run(data_fetcher, portfolio_manager):
 
             # Создаем DataFrame
             contrib_df = pd.DataFrame({
-                'Актив': list(cumulative_returns.keys()),
-                'Доходность (%)': [cumulative_returns[ticker] * 100 for ticker in cumulative_returns],
-                'Взвешенная доходность (%)': [cumulative_returns[ticker] * weights_dict[ticker] * 100 for ticker in
+                'Asset': list(cumulative_returns.keys()),
+                'Return (%)': [cumulative_returns[ticker] * 100 for ticker in cumulative_returns],
+                'Weighted Return (%)': [cumulative_returns[ticker] * weights_dict[ticker] * 100 for ticker in
                                               cumulative_returns],
-                'Вес (%)': [weights_dict[ticker] * 100 for ticker in cumulative_returns]
+                'Weight (%)': [weights_dict[ticker] * 100 for ticker in cumulative_returns]
             })
 
-            # Сортируем по взвешенной доходности
-            contrib_df = contrib_df.sort_values('Взвешенная доходность (%)', ascending=False)
+            # Sort by weighted yield
+            contrib_df = contrib_df.sort_values('Weighted Return (%)', ascending=False)
 
-            # Визуализация вклада в доходность
+            # Visualization of Impact on return
             fig_contrib = px.bar(
                 contrib_df,
-                x='Актив',
-                y='Взвешенная доходность (%)',
-                title='Вклад активов в общую доходность',
-                color='Взвешенная доходность (%)',
+                x='Asset',
+                y='Weighted Return (%)',
+                title='Impact on assets to total return',
+                color='Weighted Return (%)',
                 color_continuous_scale='RdYlGn',
-                text='Взвешенная доходность (%)'
+                text='Weighted Return (%)'
             )
 
             fig_contrib.update_traces(texttemplate='%{text:.2f}%', textposition='outside')
@@ -1358,41 +1341,41 @@ def run(data_fetcher, portfolio_manager):
 
             st.plotly_chart(fig_contrib, use_container_width=True)
 
-            # Сравнение вклада в доходность и риск
+            # Comparison of Impact on return and risk
             if risk_contribution:
                 compare_contrib_df = pd.DataFrame({
-                    'Актив': list(cumulative_returns.keys()),
-                    'Вклад в доходность (%)': [cumulative_returns[ticker] * weights_dict[ticker] * 100 /
+                    'Asset': list(cumulative_returns.keys()),
+                    'Impact on return (%)': [cumulative_returns[ticker] * weights_dict[ticker] * 100 /
                                                sum([cumulative_returns[t] * weights_dict[t] for t in
                                                     cumulative_returns])
                                                for ticker in cumulative_returns],
-                    'Вклад в риск (%)': [risk_contribution.get(ticker, 0) * 100 for ticker in cumulative_returns]
+                    'Impact on risk (%)': [risk_contribution.get(ticker, 0) * 100 for ticker in cumulative_returns]
                 })
 
-                # Сортируем по вкладу в доходность
-                compare_contrib_df = compare_contrib_df.sort_values('Вклад в доходность (%)', ascending=False)
+                # Sort by Impact on return
+                compare_contrib_df = compare_contrib_df.sort_values('Impact on return (%)', ascending=False)
 
-                # Визуализация сравнения
+                # Visual comparison
                 fig_compare = go.Figure()
 
                 fig_compare.add_trace(go.Bar(
-                    x=compare_contrib_df['Актив'],
-                    y=compare_contrib_df['Вклад в доходность (%)'],
-                    name='Вклад в доходность (%)',
+                    x=compare_contrib_df['Asset'],
+                    y=compare_contrib_df['Impact on return (%)'],
+                    name='Impact on return (%)',
                     marker_color='#2ca02c'
                 ))
 
                 fig_compare.add_trace(go.Bar(
-                    x=compare_contrib_df['Актив'],
-                    y=compare_contrib_df['Вклад в риск (%)'],
-                    name='Вклад в риск (%)',
+                    x=compare_contrib_df['Asset'],
+                    y=compare_contrib_df['Impact on risk (%)'],
+                    name='Impact on risk (%)',
                     marker_color='#d62728'
                 ))
 
                 fig_compare.update_layout(
-                    title='Сравнение вклада в доходность и риск',
-                    xaxis_title='Актив',
-                    yaxis_title='Процент (%)',
+                    title='Comparison of Impact on return and risk',
+                    xaxis_title='Asset',
+                    yaxis_title='Percent (%)',
                     barmode='group',
                     legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
                 )
@@ -1400,9 +1383,9 @@ def run(data_fetcher, portfolio_manager):
                 st.plotly_chart(fig_compare, use_container_width=True)
 
         with assets_tabs[2]:
-            st.subheader("Динамика цен активов")
+            st.subheader("Asset price dynamics")
 
-            # Нормализация цен для сравнения
+            # Normalize prices for comparison
             normalized_prices = close_prices.copy()
             for ticker in close_prices.columns:
                 if ticker in weights:
@@ -1410,38 +1393,34 @@ def run(data_fetcher, portfolio_manager):
                     if first_price > 0:
                         normalized_prices[ticker] = normalized_prices[ticker] / first_price
 
-            # Выбор активов для отображения
             selected_assets = st.multiselect(
-                "Выберите активы для отображения",
+                "Select assets to display",
                 options=list(weights.keys()),
                 default=list(weights.keys())[:5] if len(weights) > 5 else list(weights.keys())
             )
 
-            # Добавляем переключатель для показа в процентах
-            show_percentage = st.checkbox("Показывать изменение в процентах", value=True)
+            show_percentage = st.checkbox("Show change as a percentage", value=True)
 
-            # Построение графика
+            # Plotting a graph
             if selected_assets:
-                # Создаем копию, чтобы не изменять оригинальные данные
+
                 display_prices = close_prices.copy()
 
-                # Обрабатываем данные в зависимости от выбранного режима отображения
+
                 for ticker in display_prices.columns:
                     first_price = display_prices[ticker].iloc[0]
                     if first_price > 0:
                         if show_percentage:
-                            # Процентное изменение относительно начальной даты
+
                             display_prices[ticker] = (display_prices[ticker] / first_price - 1) * 100
                         else:
-                            # Нормализованное значение относительно начальной даты
+
                             display_prices[ticker] = display_prices[ticker] / first_price
 
                 fig_norm_prices = go.Figure()
 
-                # Цвета для активов - используем встроенную палитру Plotly
                 colors = px.colors.qualitative.Plotly
 
-                # Добавляем линии для каждого актива
                 for i, ticker in enumerate(selected_assets):
                     if ticker in display_prices.columns:
                         fig_norm_prices.add_trace(go.Scatter(
@@ -1452,29 +1431,28 @@ def run(data_fetcher, portfolio_manager):
                             line=dict(color=colors[i % len(colors)], width=2)
                         ))
 
-                # Добавляем бенчмарк, если есть
                 if benchmark in display_prices.columns:
                     fig_norm_prices.add_trace(go.Scatter(
                         x=display_prices.index,
                         y=display_prices[benchmark],
                         mode='lines',
                         line=dict(color='#FFFFFF', width=2, dash='dash'),
-                        name=f"{benchmark} (бенчмарк)"
+                        name=f"{benchmark} (Benchmark)"
                     ))
 
-                # Настраиваем заголовок в зависимости от режима
+                # Set up the header depending on the mode
                 if show_percentage:
-                    title = 'Изменение цен активов (% от начальной даты)'
-                    y_axis_title = 'Изменение (%)'
+                    title = 'Asset Price Change (% from Start Date)'
+                    y_axis_title = 'Price change (%)'
                 else:
-                    title = 'Нормализованные цены активов (от начальной даты)'
-                    y_axis_title = 'Нормализованная цена'
+                    title = 'Normalized asset prices (from initial date)'
+                    y_axis_title = 'Normalized price'
 
                 fig_norm_prices.update_layout(
                     title=title,
-                    xaxis_title='Дата',
+                    xaxis_title='Date',
                     yaxis_title=y_axis_title,
-                    legend_title='Активы',
+                    legend_title='Assets',
                     hovermode='x unified',
                     # Добавляем темную тему
                     template='plotly_dark',
@@ -1486,11 +1464,10 @@ def run(data_fetcher, portfolio_manager):
                 st.plotly_chart(fig_norm_prices, use_container_width=True)
 
         with assets_tabs[3]:
-            st.subheader("Детальный анализ отдельного актива")
+            st.subheader("Detailed analysis of a single asset")
 
-            # Выбор актива для анализа
             selected_asset = st.selectbox(
-                "Выберите актив для детального анализа",
+                "Select an asset for detailed analysis",
                 options=list(weights.keys())
             )
 
@@ -1498,13 +1475,13 @@ def run(data_fetcher, portfolio_manager):
                 asset_price = close_prices[selected_asset]
                 asset_return = returns[selected_asset]
 
-                # Статистика актива
-                st.write("### Статистика актива")
+                # Asset statistics
+                st.write("### Asset statistics")
 
                 col1, col2, col3, col4 = st.columns(4)
 
                 with col1:
-                    metric_name = "Общая доходность"
+                    metric_name = "Total Return"
                     value = portfolio_metrics.get('total_return', 0) * 100
                     benchmark_value = portfolio_metrics.get('benchmark_return',
                                                             0) * 100 if 'benchmark_return' in portfolio_metrics else None
@@ -1523,7 +1500,7 @@ def run(data_fetcher, portfolio_manager):
                         st.metric(metric_name, f"{value:.2f}%")
 
                 with col2:
-                    metric_name = "Годовая доходность"
+                    metric_name = "Annual Return"
                     value = portfolio_metrics.get('annualized_return', 0) * 100
                     benchmark_value = portfolio_metrics.get('benchmark_annualized_return',
                                                             0) * 100 if 'benchmark_annualized_return' in portfolio_metrics else None
@@ -1542,7 +1519,7 @@ def run(data_fetcher, portfolio_manager):
                         st.metric(metric_name, f"{value:.2f}%")
 
                 with col3:
-                    metric_name = "Волатильность"
+                    metric_name = "Volatility"
                     value = portfolio_metrics.get('volatility', 0) * 100
                     benchmark_value = portfolio_metrics.get('benchmark_volatility',
                                                             0) * 100 if 'benchmark_volatility' in portfolio_metrics else None
@@ -1561,7 +1538,7 @@ def run(data_fetcher, portfolio_manager):
                         st.metric(metric_name, f"{value:.2f}%")
 
                 with col4:
-                    metric_name = "Коэффициент Шарпа"
+                    metric_name = "Sharpe ratio"
                     value = portfolio_metrics.get('sharpe_ratio', 0)
                     benchmark_value = portfolio_metrics.get('benchmark_sharpe_ratio',
                                                             0) if 'benchmark_sharpe_ratio' in portfolio_metrics else None
@@ -1579,9 +1556,8 @@ def run(data_fetcher, portfolio_manager):
                     else:
                         st.metric(metric_name, f"{value:.2f}%")
 
-                # Получаем данные объема для выбранного актива
-                with st.spinner('Загрузка данных объема...'):
-                    # Загружаем оригинальные данные только для выбранного актива, чтобы получить объем
+                with st.spinner('Loading volume data...'):
+
                     asset_data = data_fetcher.get_historical_prices(
                         selected_asset,
                         start_date_str,
@@ -1590,7 +1566,7 @@ def run(data_fetcher, portfolio_manager):
 
                     has_volume = not asset_data.empty and 'Volume' in asset_data.columns
 
-                # График цены и объема
+
                 if has_volume:
                     fig = make_subplots(specs=[[{"secondary_y": True}]])
 
@@ -1599,7 +1575,7 @@ def run(data_fetcher, portfolio_manager):
                             x=asset_price.index,
                             y=asset_price.values,
                             mode='lines',
-                            name='Цена',
+                            name='Price',
                             line=dict(color='#1f77b4')
                         ),
                         secondary_y=False
@@ -1609,7 +1585,7 @@ def run(data_fetcher, portfolio_manager):
                         go.Bar(
                             x=asset_data.index,
                             y=asset_data['Volume'],
-                            name='Объем',
+                            name='Volume',
                             marker=dict(color='#2ca02c', opacity=0.3)
                         ),
                         secondary_y=True
@@ -1617,27 +1593,27 @@ def run(data_fetcher, portfolio_manager):
 
 
                     fig.update_layout(
-                        title=f'{selected_asset} - Цена и объем',
-                        xaxis_title='Дата',
+                        title=f'{selected_asset} - Price and volume',
+                        xaxis_title='Date',
                         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
                         hovermode='x unified'
                     )
 
-                    fig.update_yaxes(title_text="Цена", secondary_y=False)
-                    fig.update_yaxes(title_text="Объем", secondary_y=True)
+                    fig.update_yaxes(title_text="Price", secondary_y=False)
+                    fig.update_yaxes(title_text="Volume", secondary_y=True)
 
                     st.plotly_chart(fig, use_container_width=True)
                 else:
-                    # Если данные об объеме недоступны, просто показываем цену
+                    # If volume data is not available, just show price
                     fig = px.line(
                         asset_price,
-                        title=f'{selected_asset} - Цена',
-                        labels={'value': 'Цена', 'index': 'Дата'}
+                        title=f'{selected_asset} - Price',
+                        labels={'value': 'Price', 'index': 'Date'}
                     )
                     st.plotly_chart(fig, use_container_width=True)
 
-                # Сравнение с портфелем и бенчмарком
-                st.subheader("Сравнение доходности")
+                # Comparison with portfolio and benchmark
+                st.subheader("Comparison of return")
 
                 cumulative_asset = (1 + asset_return).cumprod() - 1
                 cumulative_portfolio = (1 + portfolio_returns).cumprod() - 1
@@ -1656,7 +1632,7 @@ def run(data_fetcher, portfolio_manager):
                     x=cumulative_portfolio.index,
                     y=cumulative_portfolio.values * 100,
                     mode='lines',
-                    name='Портфель',
+                    name='Portfolio',
                     line=dict(color='#2ca02c')
                 ))
 
@@ -1671,25 +1647,25 @@ def run(data_fetcher, portfolio_manager):
                     ))
 
                 fig_compare.update_layout(
-                    title=f'Сравнение доходности {selected_asset} с портфелем и бенчмарком',
-                    xaxis_title='Дата',
-                    yaxis_title='Кумулятивная доходность (%)',
+                    title=f'Comparing the return of {selected_asset} with a portfolio and a benchmark',
+                    xaxis_title='Date',
+                    yaxis_title='Cumulative Return (%)',
                     legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
                     hovermode='x unified'
                 )
 
                 st.plotly_chart(fig_compare, use_container_width=True)
 
-                # Корреляции актива
-                st.subheader("Корреляции")
+                # Asset Correlations
+                st.subheader("Correlations")
 
                 correlations = returns.corr()[selected_asset].drop(selected_asset).sort_values(ascending=False)
 
                 fig_corr = px.bar(
                     x=correlations.index,
                     y=correlations.values,
-                    title=f'Корреляция {selected_asset} с другими активами',
-                    labels={'x': 'Актив', 'y': 'Корреляция'},
+                    title=f'Correlation of {selected_asset} with other assets',
+                    labels={'x': 'Asset', 'y': 'Correlation'},
                     color=correlations.values,
                     color_continuous_scale='RdBu_r',
                     range_color=[-1, 1]
@@ -1697,86 +1673,85 @@ def run(data_fetcher, portfolio_manager):
 
                 st.plotly_chart(fig_corr, use_container_width=True)
 
-
-    # Вкладка "Корреляции"
+    # Correlations tab
     with tabs[4]:
-        st.subheader("Анализ корреляций")
+        st.subheader("Correlation analysis")
 
-        # Создаем подвкладки для разных видов анализа корреляций
+        # Create sub-tabs for different types of correlation analysis
         corr_tabs = st.tabs([
-            "Корреляционная матрица",
-            "Корреляция с бенчмарком",
-            "Кластерный анализ",
-            "Динамика корреляций"
+            "Correlation matrix",
+            "Correlation with benchmark",
+            "Cluster analysis",
+            "Dynamics of correlations"
         ])
 
         with corr_tabs[0]:
-            # Корреляционная матрица
+            # Correlation matrix
             correlation_matrix = returns.corr()
 
-            # Создаем тепловую карту корреляций
+            # Create a correlation heat map
             fig_corr = px.imshow(
                 correlation_matrix,
                 color_continuous_scale='RdBu_r',
                 zmin=-1,
                 zmax=1,
-                title='Корреляционная матрица'
+                title='Correlation matrix'
             )
 
             fig_corr.update_layout(
                 height=600,
-                xaxis_title='Актив',
-                yaxis_title='Актив'
+                xaxis_title='Asset',
+                yaxis_title='Asset'
             )
 
             st.plotly_chart(fig_corr, use_container_width=True)
 
-            # Статистика корреляций
-            st.subheader("Статистика корреляций")
+            # Correlation statistics
+            st.subheader("Correlation statistics")
 
-            # Создаем маску для верхнего треугольника матрицы (без диагонали)
+            # Create a mask for the upper triangle of the matrix (without the diagonal)
             mask = np.triu(np.ones_like(correlation_matrix, dtype=bool), k=1)
 
-            # Получаем все корреляции из верхнего треугольника
+            # Get all correlations from the upper triangle
             all_correlations = correlation_matrix.values[mask]
 
-            # Отображаем статистику
+            # Display statistics
             col1, col2, col3, col4 = st.columns(4)
 
             with col1:
                 st.metric(
-                    "Средняя корреляция",
+                    "Average correlation",
                     f"{np.mean(all_correlations):.2f}"
                 )
 
             with col2:
                 st.metric(
-                    "Медианная корреляция",
+                    "Median correlation",
                     f"{np.median(all_correlations):.2f}"
                 )
 
             with col3:
                 st.metric(
-                    "Мин. корреляция",
+                    "Min. correlation",
                     f"{np.min(all_correlations):.2f}"
                 )
 
             with col4:
                 st.metric(
-                    "Макс. корреляция",
+                    "Max correlation",
                     f"{np.max(all_correlations):.2f}"
                 )
 
         with corr_tabs[1]:
-            # Корреляция с бенчмарком
+            # Correlation with benchmark
             if benchmark in returns.columns:
                 correlations_with_benchmark = returns.corr()[benchmark].drop(benchmark).sort_values(ascending=False)
 
                 fig_bench_corr = px.bar(
                     x=correlations_with_benchmark.index,
                     y=correlations_with_benchmark.values,
-                    title=f'Корреляция активов с {benchmark}',
-                    labels={'x': 'Актив', 'y': 'Корреляция'},
+                    title=f'Asset correlation with {benchmark}',
+                    labels={'x': 'Asset', 'y': 'Correlation'},
                     color=correlations_with_benchmark.values,
                     color_continuous_scale='RdBu_r',
                     range_color=[-1, 1]
@@ -1784,11 +1759,10 @@ def run(data_fetcher, portfolio_manager):
 
                 st.plotly_chart(fig_bench_corr, use_container_width=True)
 
-                # Отображаем таблицу с корреляциями
                 corr_df = pd.DataFrame({
-                    'Актив': correlations_with_benchmark.index,
-                    'Корреляция с бенчмарком': correlations_with_benchmark.values,
-                    'Бета': [PortfolioAnalytics.calculate_beta(returns[ticker], returns[benchmark])
+                    'Asset': correlations_with_benchmark.index,
+                    'Correlation with benchmark': correlations_with_benchmark.values,
+                    'Beta': [PortfolioAnalytics.calculate_beta(returns[ticker], returns[benchmark])
                              for ticker in correlations_with_benchmark.index]
                 })
 
@@ -1802,9 +1776,9 @@ def run(data_fetcher, portfolio_manager):
                     return ''
 
                 styled_corr_df = corr_df.style.format({
-                    'Корреляция с бенчмарком': '{:.2f}',
-                    'Бета': '{:.2f}'
-                }).applymap(color_correlation, subset=['Корреляция с бенчмарком']).set_properties(**{
+                    'Correlation with benchmark': '{:.2f}',
+                    'Beta': '{:.2f}'
+                }).applymap(color_correlation, subset=['Correlation with benchmark']).set_properties(**{
                     'text-align': 'center',
                     'vertical-align': 'middle'
                 })
@@ -1816,52 +1790,43 @@ def run(data_fetcher, portfolio_manager):
                 )
 
         with corr_tabs[2]:
-            st.subheader("Кластерный анализ корреляций")
+            st.subheader("Cluster analysis of correlations")
 
             try:
                 from scipy.cluster import hierarchy
                 from scipy.spatial import distance
 
-                # Преобразуем корреляционную матрицу в матрицу расстояний
                 dist = distance.squareform(1 - np.abs(correlation_matrix))
 
-                # Выполняем иерархическую кластеризацию
                 linkage = hierarchy.linkage(dist, method='average')
 
-                # Получаем результат дендрограммы, но без отображения
                 dendrogram_result = hierarchy.dendrogram(linkage, no_plot=True)
 
-                # Получаем порядок кластеризации
                 order = dendrogram_result['leaves']
 
-                # Переупорядочиваем корреляционную матрицу
                 reordered_corr = correlation_matrix.iloc[order, order]
 
-                # Визуализируем кластеризованную тепловую карту
                 fig_cluster = px.imshow(
                     reordered_corr,
                     color_continuous_scale='RdBu_r',
                     zmin=-1,
                     zmax=1,
-                    title='Кластеризованная корреляционная матрица'
+                    title='Clustered Correlation Matrix'
                 )
 
                 fig_cluster.update_layout(
                     height=600,
-                    xaxis_title='Актив',
-                    yaxis_title='Актив'
+                    xaxis_title='Asset',
+                    yaxis_title='Asset'
                 )
 
                 st.plotly_chart(fig_cluster, use_container_width=True)
 
-                # Визуализируем дендрограмму
                 fig_dendro = go.Figure()
 
-                # Создаем дендрограмму с метками
                 dendro = hierarchy.dendrogram(linkage, labels=correlation_matrix.index, orientation='bottom',
                                               no_plot=True)
 
-                # Преобразуем дендрограмму в формат Plotly
                 for i, d in enumerate(dendro['dcoord']):
                     fig_dendro.add_trace(go.Scatter(
                         x=dendro['icoord'][i],
@@ -1872,61 +1837,60 @@ def run(data_fetcher, portfolio_manager):
                         showlegend=False
                     ))
 
-                # Вычисляем позиции меток вручную, если нет ivl_positions
                 if 'ivl_positions' not in dendro:
-                    # Вычисляем позиции самостоятельно
+
                     leaf_count = len(dendro['ivl'])
                     leaf_positions = []
                     for i in range(leaf_count):
-                        # Найдем минимальные x-координаты для каждого листа
+
                         leaf_x = []
                         for j, (xx, yy) in enumerate(zip(dendro['icoord'], dendro['dcoord'])):
-                            if yy[0] == 0.0 and yy[-1] == 0.0:  # Только линии, идущие к листам
+                            if yy[0] == 0.0 and yy[-1] == 0.0:
                                 leaf_x.append(xx[0])
                         leaf_positions = sorted(leaf_x)
                         if len(leaf_positions) == leaf_count:
                             break
 
-                    # Если не удалось вычислить позиции, используем равномерное распределение
+
                     if len(leaf_positions) != leaf_count:
                         leaf_positions = [10 * i for i in range(leaf_count)]
                 else:
                     leaf_positions = dendro['ivl_positions']
 
                 fig_dendro.update_layout(
-                    title='Дендрограмма кластеризации активов',
+                    title='Asset Clustering Dendrogram',
                     xaxis=dict(
                         tickmode='array',
                         tickvals=leaf_positions,
                         ticktext=dendro['ivl'],
                         tickangle=45
                     ),
-                    yaxis=dict(title='Расстояние'),
+                    yaxis=dict(title='Distance'),
                     height=500
                 )
 
                 st.plotly_chart(fig_dendro, use_container_width=True)
 
             except ImportError:
-                st.error("Для кластерного анализа требуется установленный пакет scipy.")
-                st.info("Установите scipy с помощью команды: pip install scipy")
+                st.error("Cluster analysis requires the scipy package to be installed.")
+                st.info("Install scipy with the command: pip install scipy")
             except Exception as e:
-                st.error(f"Не удалось выполнить кластерный анализ: {str(e)}")
-                st.info("Для кластерного анализа требуется установленный пакет scipy.")
+                st.error(f"Failed to perform cluster analysis: {str(e)}")
+                st.info("Cluster analysis requires the scipy package to be installed.")
 
         with corr_tabs[3]:
-            st.subheader("Динамика корреляций")
+            st.subheader("Dynamics of correlations")
 
             if isinstance(returns.index, pd.DatetimeIndex) and benchmark in returns.columns:
-                # Выбор активов для анализа динамики
+                # Selecting assets for dynamics analysis
                 selected_corr_assets = st.multiselect(
-                    "Выберите активы для анализа динамики корреляций",
+                    "Select assets for correlation dynamics analysis",
                     options=[t for t in weights.keys() if t != benchmark],
                     default=list(weights.keys())[:3] if len(weights) > 3 else list(weights.keys())
                 )
 
                 window_size = st.slider(
-                    "Размер окна (дней) для расчета скользящей корреляции",
+                    "Window size (days) for calculating moving correlation",
                     min_value=30,
                     max_value=252,
                     value=60,
@@ -1934,19 +1898,18 @@ def run(data_fetcher, portfolio_manager):
                 )
 
                 if selected_corr_assets:
-                    # Создаем DataFrame для скользящих корреляций
+
                     rolling_corrs = pd.DataFrame(index=returns.index)
 
                     for ticker in selected_corr_assets:
                         if ticker in returns.columns:
-                            # Рассчитываем скользящую корреляцию с бенчмарком
+
                             rolling_corrs[ticker] = returns[ticker].rolling(window=window_size).corr(returns[benchmark])
 
-                    # Удаляем начальные NaN
                     rolling_corrs = rolling_corrs.dropna()
 
                     if not rolling_corrs.empty:
-                        # Визуализируем скользящие корреляции
+
                         fig_rolling_corrs = go.Figure()
 
                         for ticker in rolling_corrs.columns:
@@ -1954,37 +1917,35 @@ def run(data_fetcher, portfolio_manager):
                                 x=rolling_corrs.index,
                                 y=rolling_corrs[ticker],
                                 mode='lines',
-                                name=f"{ticker} с {benchmark}"
+                                name=f"{ticker} with {benchmark}"
                             ))
 
                         fig_rolling_corrs.update_layout(
-                            title=f'Скользящая корреляция активов с {benchmark} (окно {window_size} дней)',
-                            xaxis_title='Дата',
-                            yaxis_title='Корреляция',
+                            title=f'Rolling correlation of assets with {benchmark} (window {window_size} days)',
+                            xaxis_title='Date',
+                            yaxis_title='Correlation',
                             yaxis=dict(range=[-1, 1]),
                             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
                             hovermode='x unified'
                         )
 
-                        # Добавляем линии для уровней корреляции
+                        # Add lines for correlation levels
                         fig_rolling_corrs.add_hline(y=0.8, line_dash="dash", line_color="red",
-                                                    annotation_text="Сильная корреляция (0.8)")
+                                                    annotation_text="Strong correlation (0.8)")
                         fig_rolling_corrs.add_hline(y=0.5, line_dash="dash", line_color="orange",
-                                                    annotation_text="Средняя корреляция (0.5)")
+                                                    annotation_text="Average correlation (0.5)")
                         fig_rolling_corrs.add_hline(y=0, line_dash="dash", line_color="green",
-                                                    annotation_text="Нет корреляции (0)")
+                                                    annotation_text="No correlation (0)")
                         fig_rolling_corrs.add_hline(y=-0.5, line_dash="dash", line_color="blue",
-                                                    annotation_text="Средняя отрицательная (-0.5)")
+                                                    annotation_text="Average negative (-0.5)")
 
                         st.plotly_chart(fig_rolling_corrs, use_container_width=True)
 
-                    # Рассчитываем среднюю корреляцию портфеля с бенчмарком
+                    # Calculate the average correlation of the portfolio with the benchmark
                     weighted_corr = pd.Series(index=returns.index)
 
-                    # Создаем маску для валидных дат
                     valid_dates = returns.index
 
-                    # Для каждой даты рассчитываем взвешенную корреляцию
                     window_indices = range(len(valid_dates) - window_size + 1)
 
                     for i in window_indices:
@@ -1992,7 +1953,6 @@ def run(data_fetcher, portfolio_manager):
                         window_end = i + window_size
                         window_dates = valid_dates[window_start:window_end]
 
-                        # Рассчитываем корреляции для текущего окна
                         window_corrs = {}
                         for ticker in weights:
                             if ticker in returns.columns and ticker != benchmark:
@@ -2001,7 +1961,6 @@ def run(data_fetcher, portfolio_manager):
                                 if not ticker_returns.empty and not bench_returns.empty:
                                     window_corrs[ticker] = ticker_returns.corr(bench_returns)
 
-                        # Рассчитываем взвешенную корреляцию
                         if window_corrs:
                             total_weight = sum(weights[t] for t in window_corrs)
                             if total_weight > 0:
@@ -2009,11 +1968,10 @@ def run(data_fetcher, portfolio_manager):
                                 if i + window_size <= len(valid_dates):
                                     weighted_corr[valid_dates[i + window_size - 1]] = avg_corr
 
-                    # Удаляем NaN
                     weighted_corr = weighted_corr.dropna()
 
                     if not weighted_corr.empty:
-                        # Визуализируем среднюю корреляцию портфеля
+
                         fig_avg_corr = go.Figure()
 
                         fig_avg_corr.add_trace(go.Scatter(
@@ -2021,44 +1979,40 @@ def run(data_fetcher, portfolio_manager):
                             y=weighted_corr.values,
                             mode='lines',
                             line=dict(color='purple', width=2),
-                            name='Средняя корреляция портфеля'
+                            name='Average portfolio correlation'
                         ))
 
                         fig_avg_corr.update_layout(
-                            title=f'Средняя взвешенная корреляция портфеля с {benchmark} (окно {window_size} дней)',
-                            xaxis_title='Дата',
-                            yaxis_title='Корреляция',
+                            title=f'Average weighted portfolio correlation with {benchmark} (window {window_size} days)',
+                            xaxis_title='Date',
+                            yaxis_title='Correlation',
                             yaxis=dict(range=[-1, 1]),
                             hovermode='x unified'
                         )
 
-                        # Добавляем линии для уровней корреляции
                         fig_avg_corr.add_hline(y=0.8, line_dash="dash", line_color="red",
-                                               annotation_text="Сильная корреляция (0.8)")
+                                               annotation_text="Strong correlation (0.8)")
                         fig_avg_corr.add_hline(y=0.5, line_dash="dash", line_color="orange",
-                                               annotation_text="Средняя корреляция (0.5)")
+                                               annotation_text="Average correlation (0.5)")
                         fig_avg_corr.add_hline(y=0, line_dash="dash", line_color="green",
-                                               annotation_text="Нет корреляции (0)")
+                                               annotation_text="No correlation (0)")
 
                         st.plotly_chart(fig_avg_corr, use_container_width=True)
 
-    # Обновленный код для вкладки "Стресс-тестирование" в portfolio_analysis.py
-
     with tabs[5]:
-        st.subheader("Стресс-тестирование")
+        st.subheader("Stress testing")
 
-        # Создаем подвкладки для разных видов стресс-тестов
+        # Create sub-tabs for different types of stress tests
         stress_tabs = st.tabs([
-            "Исторические сценарии",
-            "Пользовательские сценарии",
-            "Анализ чувствительности",
-            "Экстремальные сценарии"
+            "Historical Scenarios",
+            "Custom Scenarios",
+            "Sensitivity Analysis",
+            "Extreme Scenarios"
         ])
 
         with stress_tabs[0]:
-            st.subheader("Исторические сценарии стресс-тестирования")
+            st.subheader("Historical Stress Testing Scenarios")
 
-            # Выбор сценария стресс-тестирования
             scenarios = [
                 "financial_crisis_2008",
                 "covid_2020",
@@ -2071,60 +2025,57 @@ def run(data_fetcher, portfolio_manager):
             ]
 
             scenario_names = {
-                "financial_crisis_2008": "Финансовый кризис 2008",
-                "covid_2020": "Пандемия COVID-19 (2020)",
-                "tech_bubble_2000": "Крах доткомов (2000-2002)",
-                "black_monday_1987": "Черный понедельник (1987)",
-                "inflation_shock": "Инфляционный шок (2021-2022)",
-                "rate_hike_2018": "Повышение ставок ФРС (2018)",
-                "moderate_recession": "Умеренная рецессия",
-                "severe_recession": "Тяжелая рецессия"
+                "financial_crisis_2008": "Financial Crisis 2008",
+                "covid_2020": "COVID-19 Pandemic (2020)",
+                "tech_bubble_2000": "Dot-com Crash (2000-2002)",
+                "black_monday_1987": "Black Monday (1987)",
+                "inflation_shock": "Inflation Shock (2021-2022)",
+                "rate_hike_2018": "Fed Rate Hike (2018)",
+                "moderate_recession": "Moderate Recession",
+                "severe_recession": "Severe Recession"
             }
 
-            # Выбор сценария и стоимости портфеля
             col1, col2 = st.columns(2)
 
             with col1:
                 selected_scenario = st.selectbox(
-                    "Выберите сценарий стресс-тестирования",
+                    "Select a stress testing scenario",
                     options=scenarios,
                     format_func=lambda x: scenario_names.get(x, x)
                 )
 
             with col2:
                 portfolio_value = st.number_input(
-                    "Стоимость портфеля ($)",
+                    "Portfolio value ($)",
                     min_value=1000,
                     value=10000,
                     step=1000
                 )
 
-            # Проводим улучшенное стресс-тестирование с историческими данными
-            if st.button("Провести исторический стресс-тест"):
-                with st.spinner("Выполнение исторического стресс-теста..."):
-                    # Получаем тикеры из портфеля
+            # Conducting improved stress testing with historical data
+            if st.button("Conduct a historical stress test"):
+                with st.spinner("Performing historical stress test..."):
+
                     tickers = [asset['ticker'] for asset in portfolio_data['assets']]
 
-                    # Получаем веса из портфеля
                     weights = {asset['ticker']: asset['weight'] for asset in portfolio_data['assets']}
 
-                    # Проводим улучшенное стресс-тестирование
                     stress_test_result = RiskManagement.perform_historical_stress_test(
                         data_fetcher, tickers, weights, selected_scenario, portfolio_value, portfolio_data
                     )
 
                 if 'error' in stress_test_result:
-                    st.error(f"Ошибка при выполнении стресс-теста: {stress_test_result['error']}")
+                    st.error(f"Error while running stress test: {stress_test_result['error']}")
                 else:
-                    st.subheader(f"Результаты стресс-теста: {stress_test_result['scenario_name']}")
-                    st.write(f"**Период:** {stress_test_result['period']}")
-                    st.write(f"**Описание:** {stress_test_result['scenario_description']}")
+                    st.subheader(f"Stress test results: {stress_test_result['scenario_name']}")
+                    st.write(f"**Period:** {stress_test_result['period']}")
+                    st.write(f"**Description:** {stress_test_result['scenario_description']}")
 
                     col1, col2, col3 = st.columns(3)
 
                     with col1:
                         st.metric(
-                            "Изменение стоимости",
+                            "Change in value",
                             f"${stress_test_result['portfolio_loss']:.2f}",
                             f"{stress_test_result['shock_percentage'] * 100:.1f}%",
                             delta_color="inverse"
@@ -2132,72 +2083,66 @@ def run(data_fetcher, portfolio_manager):
 
                     with col2:
                         st.metric(
-                            "Стоимость после шока",
+                            "Cost after shock",
                             f"${stress_test_result['portfolio_after_shock']:.2f}"
                         )
 
                     with col3:
                         st.metric(
-                            "Ожидаемое время восстановления",
+                            "Expected recovery time",
                             f"{stress_test_result['recovery_months']:.1f} мес."
                         )
 
-                    # Создаем DataFrame для воздействия на отдельные позиции
                     position_data = []
                     for ticker, impact in stress_test_result['position_impacts'].items():
                         position_data.append({
-                            'Тикер': ticker,
-                            'Вес (%)': impact['weight'] * 100,
-                            'Изменение (%)': impact['price_change'] * 100,
-                            'Стоимость позиции ($)': impact['position_value'],
-                            'Потери ($)': impact['position_loss']
+                            'Ticker': ticker,
+                            'Weight (%)': impact['weight'] * 100,
+                            'Price change (%)': impact['price_change'] * 100,
+                            'Position cost ($)': impact['position_value'],
+                            'Losses ($)': impact['position_loss']
                         })
 
                     position_df = pd.DataFrame(position_data)
 
-                    # Сортируем по потерям
-                    position_df = position_df.sort_values('Потери ($)', ascending=True)
+                    # Sort by losses
+                    position_df = position_df.sort_values('Losses ($)', ascending=True)
 
-                    st.subheader("Влияние на отдельные активы")
+                    st.subheader("Impact on individual assets")
                     st.dataframe(
                         style_dataframe(position_df, {
-                            'Вес (%)': '{:.2f}%',
-                            'Изменение (%)': '{:.2f}%',
-                            'Стоимость позиции ($)': '${:.2f}',
-                            'Потери ($)': '${:.2f}'
+                            'Weight (%)': '{:.2f}%',
+                            'Price change (%)': '{:.2f}%',
+                            'Position cost ($)': '${:.2f}',
+                            'Losses ($)': '${:.2f}'
                         }),
                         use_container_width=True,
                         height=min(35 * (len(position_df) + 1), 350)
                     )
 
-                    # Визуализация потерь по активам
+                    # Visualization of losses by assets
                     fig_pos_loss = px.bar(
                         position_df,
-                        x='Тикер',
-                        y='Потери ($)',
-                        title='Потери по активам',
-                        color='Изменение (%)',
+                        x='Ticker',
+                        y='Losses ($)',
+                        title='Asset losses',
+                        color='Price change (%)',
                         color_continuous_scale='RdYlGn'
                     )
 
                     st.plotly_chart(fig_pos_loss, use_container_width=True)
 
-                    # Визуализация результатов стресс-теста
-                    st.subheader("Визуализация стресс-теста")
+                    st.subheader("Stress Test Visualization")
 
                     fig_stress = go.Figure()
 
-                    # Создаем временную шкалу (в месяцах)
                     months = list(range(-1, int(stress_test_result['recovery_months']) + 2))
                     values = []
 
-                    # Добавляем начальное значение
                     values.append(portfolio_value)
 
-                    # Добавляем значение после шока
                     values.append(stress_test_result['portfolio_after_shock'])
 
-                    # Добавляем значения восстановления (линейное приближение)
                     recovery_rate = (portfolio_value - stress_test_result['portfolio_after_shock']) / \
                                     stress_test_result[
                                         'recovery_months'] if stress_test_result['recovery_months'] > 0 else 0
@@ -2209,7 +2154,7 @@ def run(data_fetcher, portfolio_manager):
                         x=months,
                         y=values,
                         mode='lines+markers',
-                        name='Стоимость портфеля'
+                        name='Portfolio value'
                     ))
 
                     fig_stress.add_shape(
@@ -2219,19 +2164,19 @@ def run(data_fetcher, portfolio_manager):
                         x1=months[-1],
                         y1=portfolio_value,
                         line=dict(color="green", width=2, dash="dot"),
-                        name="Исходная стоимость"
+                        name="Original cost"
                     )
 
                     fig_stress.update_layout(
-                        title=f"Стресс-тест: {stress_test_result['scenario_name']}",
-                        xaxis_title="Месяцы",
-                        yaxis_title="Стоимость портфеля ($)",
+                        title=f"Stress test: {stress_test_result['scenario_name']}",
+                        xaxis_title="Months",
+                        yaxis_title="Portfolio value ($)",
                         hovermode="x"
                     )
 
                     st.plotly_chart(fig_stress, use_container_width=True)
 
-                    # Сравниваем воздействие на уровне классов активов или секторов, если данные доступны
+                    # Compare impact at asset class or sector level where data is available
                     sectors = {}
                     for asset in portfolio_data['assets']:
                         if 'sector' in asset and asset['sector'] != 'N/A':
@@ -2244,60 +2189,58 @@ def run(data_fetcher, portfolio_manager):
                                     'tickers': []
                                 }
 
-                            # Добавляем информацию о тикере
+                            # Add ticker information
                             sectors[sector]['tickers'].append(ticker)
                             sectors[sector]['weight'] += weights[ticker]
 
-                            # Добавляем вклад в общее воздействие
+                            # Adding to the overall impact
                             if ticker in stress_test_result['position_impacts']:
                                 impact = stress_test_result['position_impacts'][ticker]['price_change'] * weights[
                                     ticker]
                                 sectors[sector]['impact'] += impact
 
                     if sectors:
-                        # Создаем DataFrame для секторного анализа
+
                         sector_data = []
                         for sector, data in sectors.items():
                             sector_data.append({
-                                'Сектор': sector,
-                                'Вес (%)': data['weight'] * 100,
-                                'Изменение (%)': (data['impact'] / data['weight']) * 100 if data['weight'] > 0 else 0,
-                                'Общий вклад (%)': data['impact'] * 100,
-                                'Количество активов': len(data['tickers'])
+                                'Sector': sector,
+                                'Weight (%)': data['weight'] * 100,
+                                'Price change (%)': (data['impact'] / data['weight']) * 100 if data['weight'] > 0 else 0,
+                                'Total impact (%)': data['impact'] * 100,
+                                'Number of assets': len(data['tickers'])
                             })
 
                         sector_df = pd.DataFrame(sector_data)
-                        sector_df = sector_df.sort_values('Общий вклад (%)', ascending=True)
+                        sector_df = sector_df.sort_values('Total impact (%)', ascending=True)
 
-                        st.subheader("Влияние на уровне секторов")
+                        st.subheader("Impact at the sector level")
                         st.dataframe(sector_df.style.format({
-                            'Вес (%)': '{:.2f}%',
-                            'Изменение (%)': '{:.2f}%',
-                            'Общий вклад (%)': '{:.2f}%'
+                            'Weight (%)': '{:.2f}%',
+                            'Price change (%)': '{:.2f}%',
+                            'Total impact (%)': '{:.2f}%'
                         }), use_container_width=True)
 
-                        # Визуализация влияния по секторам
+                        # Visualize Impact by Sector
                         fig_sector = px.bar(
                             sector_df,
-                            x='Сектор',
-                            y='Общий вклад (%)',
-                            title='Влияние стресс-сценария по секторам',
-                            color='Изменение (%)',
+                            x='Sector',
+                            y='Total impact (%)',
+                            title='Impact of stress scenario by sector',
+                            color='Price change (%)',
                             color_continuous_scale='RdYlGn'
                         )
 
                         st.plotly_chart(fig_sector, use_container_width=True)
 
-                    # Отображаем расширенную аналитику сразу без кнопки
-                    st.subheader("Расширенная визуализация стресс-теста")
+                    st.subheader("Advanced Stress Test Visualization")
 
-                    # Отображение исторического контекста, если доступен
                     if 'scenario' in stress_test_result and stress_test_result['scenario'] in historical_crisis_context:
-                        st.subheader("Исторический контекст")
+                        st.subheader("Historical context")
                         display_historical_context(stress_test_result['scenario'])
 
                     try:
-                        # Интерактивная диаграмма влияния
+
                         interactive_chart = create_interactive_stress_impact_chart(
                             {stress_test_result['scenario']: stress_test_result},
                             portfolio_value
@@ -2312,53 +2255,50 @@ def run(data_fetcher, portfolio_manager):
                         st.plotly_chart(fig_assets, use_container_width=True)
                         st.plotly_chart(fig_sectors, use_container_width=True)
                     except Exception as e:
-                        st.error(f"Ошибка при создании визуализаций: {e}")
+                        st.error(f"Error creating visualizations: {e}")
 
         with stress_tabs[1]:
-            st.subheader("Пользовательский стресс-тест")
+            st.subheader("User Stress Test")
 
             st.write("""
-            Создайте собственный сценарий стресс-тестирования, указав шоковые изменения 
-            для отдельных активов или классов активов. Учитываются исторические корреляции и беты активов.
+            Create your own stress testing scenario by specifying shock changes 
+            for individual assets or asset classes. Historical correlations and asset betas are taken into account.
             """)
 
-            # Ввод стоимости портфеля
+            # Entering the portfolio value
             custom_portfolio_value = st.number_input(
-                "Стоимость портфеля ($)",
+                "Portfolio value ($)",
                 min_value=1000,
                 value=10000,
                 step=1000,
                 key="custom_portfolio_value"
             )
 
-            # Выбор типа шока
             shock_type = st.radio(
-                "Тип пользовательского сценария",
-                ["По отдельным активам", "По секторам", "Комбинированный шок"]
+                "User scenario type",
+                ["By individual assets", "By sectors", "Combined shock"]
             )
 
-            # Опции для расширенного анализа
-            with st.expander("Настройки расширенного анализа"):
+            with st.expander("Advanced Analysis Settings"):
                 col1, col2 = st.columns(2)
 
                 with col1:
-                    use_correlations = st.checkbox("Учитывать корреляции между активами", value=True,
-                                                   help="Учитывает, как шок одного актива влияет на другие активы на основе исторических корреляций")
+                    use_correlations = st.checkbox("Take into account correlations between assets", value=True,
+                                                   help="Considers how a shock to one asset affects other assets based on historical correlations")
 
                 with col2:
-                    use_beta = st.checkbox("Учитывать бету активов", value=True,
-                                           help="Учитывает чувствительность каждого актива к рыночным движениям")
+                    use_beta = st.checkbox("Consider the beta of assets", value=True,
+                                           help="Takes into account the sensitivity of each asset to market movements")
 
             custom_shocks = {}
             asset_sectors = {}
 
-            if shock_type == "По отдельным активам":
-                # Создаем ползунки для каждого актива
-                st.subheader("Задайте шоки для отдельных активов")
+            if shock_type == "By individual assets":
 
-                # Добавляем общий рыночный шок
+                st.subheader("Set shocks for individual assets")
+
                 market_shock = st.slider(
-                    "Общий рыночный шок (%)",
+                    "General market shock (%)",
                     min_value=-90,
                     max_value=50,
                     value=0,
@@ -2369,10 +2309,8 @@ def run(data_fetcher, portfolio_manager):
                 custom_shocks['market'] = market_shock
                 custom_shocks['assets'] = {}
 
-                # Создаем два столбца для более компактного отображения
                 col1, col2 = st.columns(2)
 
-                # Распределяем активы по двум столбцам
                 assets_list = list(portfolio_data['assets'])
                 mid_point = len(assets_list) // 2
 
@@ -2380,12 +2318,10 @@ def run(data_fetcher, portfolio_manager):
                     for i, asset in enumerate(assets_list[:mid_point]):
                         ticker = asset['ticker']
 
-                        # Извлекаем информацию о секторе, если доступна
                         sector = asset.get('sector', 'N/A')
                         if sector != 'N/A':
                             asset_sectors[ticker] = sector
 
-                        # Создаем слайдер для каждого актива
                         asset_shock = st.slider(
                             f"{ticker} - {asset.get('name', '')} (%)",
                             min_value=-90,
@@ -2402,12 +2338,10 @@ def run(data_fetcher, portfolio_manager):
                     for i, asset in enumerate(assets_list[mid_point:]):
                         ticker = asset['ticker']
 
-                        # Извлекаем информацию о секторе, если доступна
                         sector = asset.get('sector', 'N/A')
                         if sector != 'N/A':
                             asset_sectors[ticker] = sector
 
-                        # Создаем слайдер для каждого актива
                         asset_shock = st.slider(
                             f"{ticker} - {asset.get('name', '')} (%)",
                             min_value=-90,
@@ -2420,8 +2354,8 @@ def run(data_fetcher, portfolio_manager):
                         if asset_shock != 0:
                             custom_shocks['assets'][ticker] = asset_shock
 
-            elif shock_type == "По секторам":
-                # Получаем уникальные секторы
+            elif shock_type == "By sectors":
+
                 sectors = {}
                 for asset in portfolio_data['assets']:
                     if 'sector' in asset and asset['sector'] != 'N/A':
@@ -2431,15 +2365,12 @@ def run(data_fetcher, portfolio_manager):
                             sectors[sector] = []
                         sectors[sector].append(ticker)
 
-                        # Сохраняем сектор для каждого актива
                         asset_sectors[ticker] = sector
 
-                # Создаем ползунки для каждого сектора
-                st.subheader("Задайте шоки для секторов")
+                st.subheader("Set shocks for sectors")
 
-                # Добавляем общий рыночный шок
                 market_shock = st.slider(
-                    "Общий рыночный шок (%)",
+                    "Total Market Shock (%)",
                     min_value=-90,
                     max_value=50,
                     value=0,
@@ -2449,11 +2380,10 @@ def run(data_fetcher, portfolio_manager):
 
                 custom_shocks['market'] = market_shock
 
-                # Создаем ползунки для каждого сектора
                 if sectors:
                     for sector, tickers in sectors.items():
                         sector_shock = st.slider(
-                            f"Шок для сектора {sector} ({len(tickers)} активов) (%)",
+                            f"Shock for sector {sector} ({len(tickers)} assets) (%)",
                             min_value=-90,
                             max_value=50,
                             value=0,
@@ -2464,14 +2394,13 @@ def run(data_fetcher, portfolio_manager):
                         if sector_shock != 0:
                             custom_shocks[sector] = sector_shock
                 else:
-                    st.warning("Информация о секторах для активов недоступна. Используйте шок по отдельным активам.")
+                    st.warning("Sector information for assets is not available. Use individual asset shock.")
 
-            else:  # Комбинированный шок
-                st.subheader("Комбинированный шок для рынка, секторов и активов")
+            else:
+                st.subheader("Combined shock to market, sectors and assets")
 
-                # Общий рыночный шок
                 market_shock = st.slider(
-                    "Общий рыночный шок (%)",
+                    "Total Market Shock (%)",
                     min_value=-90,
                     max_value=50,
                     value=-25,
@@ -2481,7 +2410,6 @@ def run(data_fetcher, portfolio_manager):
 
                 custom_shocks['market'] = market_shock
 
-                # Получаем секторы
                 sectors = {}
                 for asset in portfolio_data['assets']:
                     if 'sector' in asset and asset['sector'] != 'N/A':
@@ -2491,18 +2419,16 @@ def run(data_fetcher, portfolio_manager):
                             sectors[sector] = []
                         sectors[sector].append(ticker)
 
-                        # Сохраняем сектор для каждого актива
                         asset_sectors[ticker] = sector
 
-                # Секторные шоки (если есть секторы)
                 if sectors:
-                    st.subheader("Секторные шоки:")
-                    # Выбираем несколько ключевых секторов для указания шоков
+                    st.subheader("Sector shocks:")
+
                     key_sectors = list(sectors.keys())[:min(5, len(sectors))]
 
                     for sector in key_sectors:
                         sector_shock = st.slider(
-                            f"Дополнительный шок для сектора {sector} (%)",
+                            f"Additional shock for sector {sector} (%)",
                             min_value=-50,
                             max_value=30,
                             value=0,
@@ -2513,12 +2439,10 @@ def run(data_fetcher, portfolio_manager):
                         if sector_shock != 0:
                             custom_shocks[sector] = sector_shock
 
-                # Шоки для отдельных активов
-                st.subheader("Шоки для отдельных активов (опционально):")
+                st.subheader("Shocks for individual assets (optional):")
 
-                # Выбираем активы для задания индивидуальных шоков
                 custom_assets = st.multiselect(
-                    "Выберите активы для задания индивидуальных шоков",
+                    "Select assets to define individual shocks",
                     options=[asset['ticker'] for asset in portfolio_data['assets']],
                     default=[]
                 )
@@ -2531,7 +2455,7 @@ def run(data_fetcher, portfolio_manager):
                                            if asset['ticker'] == ticker), ticker)
 
                         asset_shock = st.slider(
-                            f"Дополнительный шок для {ticker} - {asset_name} (%)",
+                            f"Additional shock for {ticker} - {asset_name} (%)",
                             min_value=-50,
                             max_value=30,
                             value=0,
@@ -2542,30 +2466,26 @@ def run(data_fetcher, portfolio_manager):
                         if asset_shock != 0:
                             custom_shocks['assets'][ticker] = asset_shock
 
-            # Кнопка для запуска пользовательского стресс-теста
-            if st.button("Запустить пользовательский стресс-тест"):
-                with st.spinner("Выполнение пользовательского стресс-теста..."):
-                    # Загружаем данные для анализа
+            # Button to run custom stress test
+            if st.button("Run a custom stress test"):
+                with st.spinner("Performing a custom stress test..."):
+
                     start_date = (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d')
                     end_date = datetime.now().strftime('%Y-%m-%d')
 
-                    # Получаем список тикеров и весов
                     tickers = [asset['ticker'] for asset in portfolio_data['assets']]
                     weights = {asset['ticker']: asset['weight'] for asset in portfolio_data['assets']}
 
-                    # Добавляем SPY для расчета беты, если его нет в списке
                     if 'SPY' not in tickers:
                         tickers.append('SPY')
 
-                    # Загружаем исторические данные
                     price_data = data_fetcher.get_batch_data(tickers, start_date, end_date)
 
-                    # Проверяем, что данные загружены успешно
                     if not price_data or all(df.empty for df in price_data.values()):
                         st.error(
-                            "Не удалось загрузить исторические данные. Пожалуйста, проверьте тикеры или измените период.")
+                            "Failed to load historical data. Please check tickers or change period.")
                     else:
-                        # Создаем DataFrame с ценами закрытия
+
                         close_prices = pd.DataFrame()
 
                         for ticker, df in price_data.items():
@@ -2575,10 +2495,8 @@ def run(data_fetcher, portfolio_manager):
                                 elif 'Close' in df.columns:
                                     close_prices[ticker] = df['Close']
 
-                        # Рассчитываем доходности
                         returns = PortfolioAnalytics.calculate_returns(close_prices)
 
-                        # Проводим расширенный стресс-тест
                         stress_test_result = RiskManagement.perform_advanced_custom_stress_test(
                             returns=returns,
                             weights=weights,
@@ -2590,15 +2508,15 @@ def run(data_fetcher, portfolio_manager):
                         )
 
                         if 'error' in stress_test_result:
-                            st.error(f"Ошибка при выполнении стресс-теста: {stress_test_result['error']}")
+                            st.error(f"Error while running stress test: {stress_test_result['error']}")
                         else:
-                            st.subheader("Результаты пользовательского стресс-теста")
+                            st.subheader("User Stress Test Results")
 
                             col1, col2, col3 = st.columns(3)
 
                             with col1:
                                 st.metric(
-                                    "Изменение стоимости",
+                                    "Change in value",
                                     f"${stress_test_result['portfolio_loss']:.2f}",
                                     f"{stress_test_result['loss_percentage'] * 100:.1f}%",
                                     delta_color="inverse"
@@ -2606,56 +2524,55 @@ def run(data_fetcher, portfolio_manager):
 
                             with col2:
                                 st.metric(
-                                    "Стоимость после шока",
+                                    "Cost after shock",
                                     f"${stress_test_result['portfolio_after_shock']:.2f}"
                                 )
 
                             with col3:
                                 st.metric(
-                                    "Ожидаемое время восстановления",
-                                    f"{stress_test_result['recovery_months']:.1f} мес."
-                                )
+                                    "Expected recovery time",
+                                    f"{stress_test_result['recovery_months']:.1f} month"
 
-                            # Создаем DataFrame для детального анализа активов
+                                )
+                            # Create a DataFrame for detailed asset analysis
                             detailed_data = []
                             for ticker, impact in stress_test_result['detailed_impacts'].items():
                                 detailed_data.append({
-                                    'Тикер': ticker,
-                                    'Вес (%)': impact['weight'] * 100,
-                                    'Бета': impact['beta'],
-                                    'Изменение (%)': impact['shock_percentage'] * 100,
-                                    'Стоимость позиции ($)': impact['position_value'],
-                                    'Потери ($)': impact['position_loss']
+                                    'Ticker': ticker,
+                                    'Weight (%)': impact['weight'] * 100,
+                                    'Beta': impact['beta'],
+                                    'Price change (%)': impact['shock_percentage'] * 100,
+                                    'Position cost ($)': impact['position_value'],
+                                    'Losses ($)': impact['position_loss']
                                 })
 
                             detailed_df = pd.DataFrame(detailed_data)
 
-                            # Сортируем по потерям
-                            detailed_df = detailed_df.sort_values('Потери ($)', ascending=True)
+                            # Sort by losses
+                            detailed_df = detailed_df.sort_values('Losses ($)', ascending=True)
 
-                            st.subheader("Детальный анализ влияния на активы")
+                            st.subheader("Detailed analysis of the impact on assets")
                             st.dataframe(detailed_df.style.format({
-                                'Вес (%)': '{:.2f}%',
-                                'Бета': '{:.2f}',
-                                'Изменение (%)': '{:.2f}%',
-                                'Стоимость позиции ($)': '${:.2f}',
-                                'Потери ($)': '${:.2f}'
+                                'Weight (%)': '{:.2f}%',
+                                'Beta': '{:.2f}',
+                                'Price change (%)': '{:.2f}%',
+                                'Position cost ($)': '${:.2f}',
+                                'Losses ($)': '${:.2f}'
                             }), use_container_width=True)
 
-                            # Визуализация потерь по активам
+                            # Visualization of losses by assets
                             fig_pos_loss = px.bar(
                                 detailed_df,
-                                x='Тикер',
-                                y='Потери ($)',
-                                title='Потери по активам',
-                                color='Изменение (%)',
+                                x='Ticker',
+                                y='Losses ($)',
+                                title='Asset losses',
+                                color='Price change (%)',
                                 color_continuous_scale='RdYlGn',
-                                hover_data=['Вес (%)', 'Бета']
+                                hover_data=['Weight (%)', 'Beta']
                             )
 
                             st.plotly_chart(fig_pos_loss, use_container_width=True)
 
-                            # Секторный анализ (если доступны данные о секторах)
                             if asset_sectors:
                                 sector_impacts = {}
                                 for ticker, impact in stress_test_result['detailed_impacts'].items():
@@ -2674,57 +2591,52 @@ def run(data_fetcher, portfolio_manager):
                                         sector_impacts[sector]['value'] += impact['position_value']
                                         sector_impacts[sector]['tickers_count'] += 1
 
-                                # Создаем DataFrame для секторного анализа
                                 sector_data = []
                                 for sector, data in sector_impacts.items():
                                     sector_data.append({
-                                        'Сектор': sector,
-                                        'Вес (%)': data['weight'] * 100,
-                                        'Количество активов': data['tickers_count'],
-                                        'Стоимость ($)': data['value'],
-                                        'Потери ($)': data['loss'],
-                                        'Изменение (%)': (data['loss'] / data['value'] * 100) if data[
+                                        'Sector': sector,
+                                        'Weight (%)': data['weight'] * 100,
+                                        'Number of assets': data['tickers_count'],
+                                        'Price ($)': data['value'],
+                                        'Losses ($)': data['loss'],
+                                        'Price change (%)': (data['loss'] / data['value'] * 100) if data[
                                                                                                      'value'] > 0 else 0
                                     })
 
                                 sector_df = pd.DataFrame(sector_data)
-                                sector_df = sector_df.sort_values('Потери ($)', ascending=True)
+                                sector_df = sector_df.sort_values('Losses ($)', ascending=True)
 
-                                st.subheader("Секторный анализ")
+                                st.subheader("Sector analysis")
                                 st.dataframe(sector_df.style.format({
-                                    'Вес (%)': '{:.2f}%',
-                                    'Стоимость ($)': '${:.2f}',
-                                    'Потери ($)': '${:.2f}',
-                                    'Изменение (%)': '{:.2f}%'
+                                    'Weight (%)': '{:.2f}%',
+                                    'Price ($)': '${:.2f}',
+                                    'Losses ($)': '${:.2f}',
+                                    'Price change (%)': '{:.2f}%'
                                 }), use_container_width=True)
 
-                                # Визуализация потерь по секторам
+                                # Visualization of losses by sectors
                                 fig_sector_loss = px.bar(
                                     sector_df,
-                                    x='Сектор',
-                                    y='Потери ($)',
-                                    title='Потери по секторам',
-                                    color='Изменение (%)',
+                                    x='Sector',
+                                    y='Losses ($)',
+                                    title='Losses by sector',
+                                    color='Price change (%)',
                                     color_continuous_scale='RdYlGn',
-                                    hover_data=['Вес (%)', 'Количество активов']
+                                    hover_data=['Weight (%)', 'Number of assets']
                                 )
 
                                 st.plotly_chart(fig_sector_loss, use_container_width=True)
 
-                            # Визуализация восстановления
-                            st.subheader("Прогноз восстановления")
+                            # Visualization of recovery
+                            st.subheader("Recovery forecast")
 
-                            # Создаем временную шкалу (в месяцах)
                             months = list(range(-1, int(stress_test_result['recovery_months']) + 2))
                             values = []
 
-                            # Добавляем начальное значение
                             values.append(custom_portfolio_value)
 
-                            # Добавляем значение после шока
                             values.append(stress_test_result['portfolio_after_shock'])
 
-                            # Добавляем значения восстановления (линейное приближение)
                             recovery_rate = (custom_portfolio_value - stress_test_result['portfolio_after_shock']) / \
                                             stress_test_result[
                                                 'recovery_months'] if stress_test_result['recovery_months'] > 0 else 0
@@ -2738,7 +2650,7 @@ def run(data_fetcher, portfolio_manager):
                                 x=months,
                                 y=values,
                                 mode='lines+markers',
-                                name='Прогноз стоимости'
+                                name='Cost forecast'
                             ))
 
                             fig_recovery.add_shape(
@@ -2748,296 +2660,288 @@ def run(data_fetcher, portfolio_manager):
                                 x1=months[-1],
                                 y1=custom_portfolio_value,
                                 line=dict(color="green", width=2, dash="dot"),
-                                name="Исходная стоимость"
+                                name="Original cost"
                             )
 
                             fig_recovery.update_layout(
-                                title="Прогноз восстановления портфеля",
-                                xaxis_title="Месяцы",
-                                yaxis_title="Стоимость портфеля ($)",
+                                title="Portfolio Recovery Forecast",
+                                xaxis_title="Months",
+                                yaxis_title="Portfolio value ($)",
                                 hovermode="x unified"
                             )
 
                             st.plotly_chart(fig_recovery, use_container_width=True)
 
-                            # Добавляем информацию о заданных шоках
-                            st.subheader("Параметры стресс-теста")
+                            st.subheader("Stress test parameters")
 
-                            # Создаем DataFrame с заданными шоками для наглядности
                             shock_summary = []
 
-                            # Добавляем рыночный шок
                             if 'market' in custom_shocks:
                                 shock_summary.append({
-                                    'Тип': 'Рыночный шок',
-                                    'Объект': 'Весь рынок',
-                                    'Заданный шок (%)': custom_shocks['market'] * 100
+                                    'Type': 'Market Shock',
+                                    'Object': 'The whole market',
+                                    'The Shock Given (%)': custom_shocks['market'] * 100
                                 })
 
-                            # Добавляем секторные шоки
+                            # Adding sector shocks
                             for key, value in custom_shocks.items():
                                 if key != 'market' and key != 'assets':
                                     shock_summary.append({
-                                        'Тип': 'Секторный шок',
-                                        'Объект': key,
-                                        'Заданный шок (%)': value * 100
+                                        'Type': 'Sector shock',
+                                        'Object': key,
+                                        'The Shock Given (%)': value * 100
                                     })
 
-                            # Добавляем шоки для отдельных активов
+                            # Add shocks for individual assets
                             if 'assets' in custom_shocks:
                                 for ticker, shock in custom_shocks['assets'].items():
                                     shock_summary.append({
-                                        'Тип': 'Актив',
-                                        'Объект': ticker,
-                                        'Заданный шок (%)': shock * 100
+                                        'Type': 'Asset',
+                                        'Object': ticker,
+                                        'The Shock Given (%)': shock * 100
                                     })
 
                             if shock_summary:
                                 shock_df = pd.DataFrame(shock_summary)
                                 st.dataframe(shock_df.style.format({
-                                    'Заданный шок (%)': '{:.1f}%'
+                                    'The Shock Given (%)': '{:.1f}%'
                                 }), use_container_width=True)
 
                                 st.info("""
-                                **Как интерпретировать результаты:**
+                                **How to interpret the results:**
 
-                                1. **Корреляции и беты**: В расчете учитываются исторические корреляции между активами и их беты относительно рынка, 
-                                   что дает более реалистичную картину, чем просто суммирование индивидуальных шоков.
+                                1. **Correlations and Betas**: The calculation takes into account historical correlations between assets and their betas relative to the market, which gives a more realistic picture than simply summing individual shocks.
 
-                                2. **Время восстановления**: Оценка основана на средней годовой доходности рынка 7%. Фактическое время восстановления 
-                                   может отличаться в зависимости от рыночных условий.
+                                2. **Recovery Time**: Estimate based on average annual market return of 7%. Actual recovery time may vary depending on market conditions.
 
-                                3. **Влияние на активы**: Активы с высокой бетой и/или с сильной корреляцией с негативно шокированными секторами 
-                                   будут испытывать более значительное влияние.
+                                3. **Asset Impact**: Assets with high beta and/or strong correlation to negatively shocked sectors will experience a greater impact.
                                 """)
                             else:
-                                st.warning("Не заданы шоковые значения. Результаты могут быть неинформативными.")
+                                st.warning("No shock values ​​specified. Results may be uninformative.")
 
         with stress_tabs[2]:
-            st.subheader("Анализ чувствительности")
+            st.subheader("Sensitivity analysis")
 
             st.write("""
-            Анализ чувствительности показывает, как изменится стоимость портфеля при 
-            изменении ключевых факторов риска.
+            Sensitivity analysis shows how the value of a portfolio will change when key risk factors change.
             """)
 
-            # Выбор факторов для анализа
             factors = st.multiselect(
-                "Выберите факторы для анализа чувствительности",
-                options=["Процентные ставки", "Инфляция", "Цены на нефть", "Курс доллара", "Рецессия"],
-                default=["Процентные ставки", "Инфляция"]
+                "Select factors for sensitivity analysis",
+                options=["Interest Rates", "Inflation", "Oil Prices", "Dollar Rate", "Recession"],
+                default=["Interest Rates", "Inflation"]
             )
 
             if factors:
-                # Создаем словарь факторов и их влияния на разные классы активов
+                # Create a dictionary of factors and their impact on different asset classes
                 factor_impacts = {
-                    "Процентные ставки": {
-                        "Акции": -0.05,  # -5% при повышении ставок на 1%
-                        "Облигации": -0.1,  # -10% при повышении ставок на 1%
-                        "Недвижимость": -0.08,  # -8% при повышении ставок на 1%
-                        "Золото": -0.03,  # -3% при повышении ставок на 1%
-                        "Денежный рынок": 0.01  # +1% при повышении ставок на 1%
+                    "Interest Rates": {
+                        "Stocks": -0.05,  # -5% for every 1% increase in rates
+                        "Bonds": -0.1,  # -10% for every 1% increase in rates
+                        "Real Estate": -0.08,  # -8% for every 1% increase in rates
+                        "Gold": -0.03,  # -3% for every 1% increase in rates
+                        "Money Market": 0.01  # +1% for every 1% increase in rates
                     },
-                    "Инфляция": {
-                        "Акции": -0.02,  # -2% при росте инфляции на 1%
-                        "Облигации": -0.05,  # -5% при росте инфляции на 1%
-                        "Недвижимость": 0.02,  # +2% при росте инфляции на 1%
-                        "Золото": 0.05,  # +5% при росте инфляции на 1%
-                        "Денежный рынок": -0.01  # -1% при росте инфляции на 1%
+                    "Inflation": {
+                        "Stocks": -0.02,  # -2% with inflation growth of 1%
+                        "Bonds": -0.05,  # -5% with inflation growth of 1%
+                        "Real Estate": 0.02,  # +2% with inflation growth of 1%
+                        "Gold": 0.05,  # +5% with inflation growth of 1%
+                        "Money Market": -0.01  # -1% with inflation growth of 1%
                     },
-                    "Цены на нефть": {
-                        "Акции": 0.01,  # +1% при росте цен на нефть на 10%
-                        "Облигации": -0.01,  # -1% при росте цен на нефть на 10%
-                        "Недвижимость": 0.01,  # +1% при росте цен на нефть на 10%
-                        "Золото": 0.02,  # +2% при росте цен на нефть на 10%
-                        "Денежный рынок": 0  # 0% при росте цен на нефть на 10%
+                    "Oil Prices": {
+                        "Stocks": 0.01,  # +1% if oil prices rise by 10%
+                        "Bonds": -0.01,  # -1% if oil prices rise by 10%
+                        "Real Estate": 0.01,  # +1% if oil prices rise by 10%
+                        "Gold": 0.02,  # +2% if oil prices rise by 10%
+                        "Money Market": 0  # 0% if oil prices rise by 10%
                     },
-                    "Курс доллара": {
-                        "Акции": -0.02,  # -2% при укреплении доллара на 5%
-                        "Облигации": -0.01,  # -1% при укреплении доллара на 5%
-                        "Недвижимость": -0.02,  # -2% при укреплении доллара на 5%
-                        "Золото": -0.03,  # -3% при укреплении доллара на 5%
-                        "Денежный рынок": 0.01  # +1% при укреплении доллара на 5%
+                    "Dollar Rate": {
+                        "Stocks": -0.02,  # -2% if the dollar strengthens by 5%
+                        "Bonds": -0.01,  # -1% if the dollar strengthens by 5%
+                        "Real Estate": -0.02,  # -2% if the dollar strengthens by 5%
+                        "Gold": -0.03,  # -3% if the dollar strengthens by 5%
+                        "Money Market": 0.01  # +1% if the dollar strengthens by 5%
                     },
-                    "Рецессия": {
-                        "Акции": -0.3,  # -30% при рецессии
-                        "Облигации": -0.05,  # -5% при рецессии
-                        "Недвижимость": -0.2,  # -20% при рецессии
-                        "Золото": 0.1,  # +10% при рецессии
-                        "Денежный рынок": 0.01  # +1% при рецессии
+                    "Recession": {
+                        "Stocks": -0.3,  # -30% during recession
+                        "Bonds": -0.05,  # -5% during recession
+                        "Real Estate": -0.2,  # -20% during recession
+                        "Gold": 0.1,  # +10% during recession
+                        "Money Market": 0.01  # +1% during recession
                     }
                 }
 
-                # Определяем класс актива для каждого тикера
+                # Determine the asset class for each ticker
                 asset_classes = {}
                 for asset in portfolio_data['assets']:
                     ticker = asset['ticker']
                     if 'asset_class' in asset and asset['asset_class'] != 'N/A':
                         class_name = asset['asset_class']
                     elif 'sector' in asset and asset['sector'] in ['Financial Services', 'Financial', 'Financials']:
-                        class_name = "Акции"  # Если сектор - финансы, то это скорее всего акции
+                        class_name = "Stocks"
                     else:
-                        # По умолчанию считаем, что это акции
-                        class_name = "Акции"
+
+                        class_name = "Stocks"
 
                     asset_classes[ticker] = class_name
 
-                # Создаем таблицу результатов чувствительности
+                # Create a sensitivity results table
                 sensitivity_results = []
 
                 for factor in factors:
-                    # Для каждого фактора определяем диапазон изменений
-                    if factor == "Процентные ставки":
-                        changes = [0.25, 0.5, 1.0, 1.5, 2.0]  # Изменения в процентных пунктах
-                        change_label = "п.п."
-                    elif factor == "Инфляция":
-                        changes = [1.0, 2.0, 3.0, 4.0, 5.0]  # Изменения в процентных пунктах
-                        change_label = "п.п."
-                    elif factor == "Цены на нефть":
-                        changes = [10, 20, 30, 40, 50]  # Изменения в процентах
+                    # For each factor we determine the range of changes
+                    if factor == "Interest Rates":
+                        changes = [0.25, 0.5, 1.0, 1.5, 2.0]
+                        change_label = "p.p."
+                    elif factor == "Inflation":
+                        changes = [1.0, 2.0, 3.0, 4.0, 5.0]
+                        change_label = "p.p."
+                    elif factor == "Oil prices":
+                        changes = [10, 20, 30, 40, 50]
                         change_label = "%"
-                    elif factor == "Курс доллара":
-                        changes = [5, 10, 15, 20, 25]  # Изменения в процентах
+                    elif factor == "Dollar Rate":
+                        changes = [5, 10, 15, 20, 25]
                         change_label = "%"
-                    else:  # Рецессия - бинарное событие
-                        changes = [1]  # Просто наступление рецессии
+                    elif factor == "Recession":
+                        changes = [1]
+                        change_label = "x"
+                    else:
+                        changes = [1]
                         change_label = ""
 
-                    # Рассчитываем влияние каждого изменения фактора
+                    # We calculate the impact of each change in the factor
                     for change in changes:
                         portfolio_impact = 0
 
                         for ticker, weight in weights.items():
-                            asset_class = asset_classes.get(ticker, "Акции")
+                            asset_class = asset_classes.get(ticker, "Stocks")
 
-                            # Преобразуем класс актива в ключ из factor_impacts
                             if asset_class in ["Equity", "Stock", "Stocks"]:
-                                asset_class = "Акции"
+                                asset_class = "Stocks"
                             elif asset_class in ["Bond", "Bonds", "Fixed Income"]:
-                                asset_class = "Облигации"
+                                asset_class = "Bonds"
                             elif asset_class in ["Real Estate", "REIT"]:
-                                asset_class = "Недвижимость"
+                                asset_class = "Real Estate"
                             elif asset_class in ["Gold", "Precious Metals"]:
-                                asset_class = "Золото"
+                                asset_class = "Gold"
                             elif asset_class in ["Cash", "Money Market"]:
-                                asset_class = "Денежный рынок"
+                                asset_class = "Money Market"
 
-                            # Находим соответствующий коэффициент влияния
+                            # Find the corresponding influence coefficient
                             impact_coef = factor_impacts[factor].get(asset_class, 0)
 
-                            # Рассчитываем влияние на актив
+                            # Calculate the impact on the asset
                             asset_impact = impact_coef * change
 
-                            # Добавляем взвешенное влияние к общему влиянию на портфель
+                            # Add the weighted impact to the overall portfolio impact
                             portfolio_impact += asset_impact * weight
 
                         sensitivity_results.append({
-                            'Фактор': factor,
-                            'Изменение': f"+{change} {change_label}" if change_label else "Наступление",
-                            'Влияние на портфель (%)': portfolio_impact * 100
+                            'Factor': factor,
+                            'Price change': f"+{change} {change_label}" if change_label else "Occurrence",
+                            'Impact on portfolio (%)': portfolio_impact * 100
                         })
 
-                # Создаем DataFrame и сортируем по влиянию
                 sensitivity_df = pd.DataFrame(sensitivity_results)
-                sensitivity_df = sensitivity_df.sort_values('Влияние на портфель (%)', ascending=True)
+                sensitivity_df = sensitivity_df.sort_values('Impact on portfolio (%)', ascending=True)
 
-                # Визуализация результатов чувствительности
+                # Visualization of sensitivity results
                 fig_sensitivity = px.bar(
                     sensitivity_df,
-                    x='Влияние на портфель (%)',
-                    y='Фактор',
-                    color='Влияние на портфель (%)',
+                    x='Impact on portfolio (%)',
+                    y='Factor',
+                    color='Impact on portfolio (%)',
                     color_continuous_scale='RdYlGn',
-                    text='Изменение',
+                    text='Price change',
                     orientation='h',
-                    title='Чувствительность портфеля к факторам риска'
+                    title='Portfolio sensitivity to risk factors'
                 )
 
                 fig_sensitivity.update_layout(
-                    xaxis_title='Влияние на доходность портфеля (%)',
-                    yaxis_title='Фактор риска',
+                    xaxis_title='Impact on portfolio performance (%)',
+                    yaxis_title='Risk factor',
                     height=500
                 )
 
                 st.plotly_chart(fig_sensitivity, use_container_width=True)
 
-                # Отображаем таблицу с результатами
+                # Display the table with the results
                 st.dataframe(sensitivity_df.style.format({
-                    'Влияние на портфель (%)': '{:.2f}%'
+                    'Impact on portfolio (%)': '{:.2f}%'
                 }), use_container_width=True)
 
         with stress_tabs[3]:
-            st.subheader("Экстремальные сценарии")
+            st.subheader("Extreme scenarios")
 
             st.write("""
-            Анализ экстремальных сценариев оценивает влияние маловероятных, но возможных 
-            событий на стоимость портфеля, используя статистическое моделирование.
+            Extreme scenario analysis assesses the impact of unlikely but possible events on portfolio value using statistical modeling.
             """)
 
-            # Ввод стоимости портфеля
+            # Entering the portfolio value
             extreme_portfolio_value = st.number_input(
-                "Стоимость портфеля ($)",
+                "Portfolio value ($)",
                 min_value=1000,
                 value=10000,
                 step=1000,
                 key="extreme_portfolio_value"
             )
 
-            # Определяем экстремальные сценарии с более подробным описанием
+            # We define extreme scenarios with more detailed descriptions
             extreme_scenarios = {
                 "market_crash_50": {
-                    "name": "Рыночный крах (-50%)",
-                    "description": "Крупномасштабный крах рынка, аналогичный кризису 2008 года, ведущий к падению основных индексов на 50%.",
+                    "name": "Market Crash (-50%)",
+                    "description": "A large-scale market crash similar to the 2008 crisis, leading to a 50% drop in major indices.",
                     "impact": -0.5,
-                    "details": "Аналогично периоду сентябрь 2008 - март 2009, когда S&P 500 потерял более 50%. События такой серьезности случаются примерно раз в 50-80 лет."
+                    "details": "Similar to the period September 2008 - March 2009, when the S&P 500 lost more than 50%. Events of this severity happen approximately once every 50-80 years."
                 },
                 "severe_recession_35": {
-                    "name": "Сильная рецессия (-35%)",
-                    "description": "Тяжелая экономическая рецессия с длительным сокращением ВВП и высокой безработицей.",
+                    "name": "Severe Recession (-35%)",
+                    "description": "A severe economic recession with a prolonged contraction in GDP and high unemployment.",
                     "impact": -0.35,
-                    "details": "Похоже на начало пандемии COVID-19 (февраль-март 2020), когда рынки упали примерно на 35%. Вероятность таких событий - примерно раз в 10-15 лет."
+                    "details": "Similar to the start of the COVID-19 pandemic (February-March 2020), when markets fell by about 35%. The likelihood of such events is about once every 10-15 years."
                 },
                 "inflation_shock_25": {
-                    "name": "Инфляционный шок (+8%)",
-                    "description": "Резкий скачок инфляции выше 8%, вынуждающий центральные банки агрессивно повышать процентные ставки.",
+                    "name": "Inflation shock (+8%)",
+                    "description": "A sharp jump in inflation above 8%, forcing central banks to raise interest rates aggressively.",
                     "impact": -0.25,
-                    "details": "Исторические примеры: инфляционный шок 1970-х годов и период 2021-2022 гг. Особенно негативно влияет на долгосрочные облигации и акции роста."
+                    "details": "Historical examples: the inflation shock of the 1970s and the period 2021-2022. Particularly negative for long-term bonds and growth stocks."
                 },
                 "geopolitical_crisis_20": {
-                    "name": "Геополитический кризис",
-                    "description": "Серьезный международный конфликт или кризис, влияющий на глобальную торговлю и энергетические рынки.",
+                    "name": "Geopolitical Crisis",
+                    "description": "A major international conflict or crisis that affects global trade and energy markets.",
                     "impact": -0.20,
-                    "details": "Например, нефтяной кризис 1973 года или напряженность между крупными державами. Часто приводит к росту цен на сырьевые товары и золото при падении большинства акций."
+                    "details": "Such as the 1973 oil crisis or tensions between major powers. Often causes commodity and gold prices to rise while most stocks fall."
                 },
                 "tech_bubble_burst_40": {
-                    "name": "Лопнувший технологический пузырь",
-                    "description": "Резкая коррекция переоцененных технологических акций, подобная краху доткомов 2000 года.",
+                    "name": "Tech Bubble Burst",
+                    "description": "A sharp correction in overvalued tech stocks, similar to the dot-com crash of 2000.",
                     "impact": -0.40,
-                    "details": "Технологические и акции роста могут потерять 60-80% стоимости, в то время как стоимостные акции и защитные секторы будут чувствовать себя лучше. Вероятность - примерно раз в 20-25 лет."
+                    "details": "Tech and growth stocks could lose 60-80% of their value, while value stocks and defensive sectors will do better. Likely about once every 20-25 years."
                 },
                 "currency_crisis_15": {
-                    "name": "Валютный кризис",
-                    "description": "Сильная девальвация одной или нескольких мировых валют, вызывающая цепную реакцию на рынках.",
+                    "name": "Currency Crisis",
+                    "description": "A major devaluation of one or more global currencies that causes a chain reaction across markets.",
                     "impact": -0.15,
-                    "details": "Примеры включают Азиатский финансовый кризис 1997 года или Европейский валютный кризис 1992 года. Обычно имеет региональный характер, но может распространиться глобально."
+                    "details": "Examples include the Asian financial crisis of 1997 or the European currency crisis of 1992. Usually regional in nature, but can spread globally."
                 }
             }
 
-            # Выбор сценариев для анализа
+            # Selecting scenarios for analysis
             selected_extreme_scenarios = st.multiselect(
-                "Выберите экстремальные сценарии для анализа",
+                "Select extreme scenarios for analysis",
                 options=list(extreme_scenarios.keys()),
                 default=list(extreme_scenarios.keys())[:3],
                 format_func=lambda x: extreme_scenarios[x]["name"]
             )
 
-            # Опциональная настройка параметров моделирования
-            with st.expander("Параметры моделирования"):
+            # Optional setting of simulation parameters
+            with st.expander("Simulation parameters"):
                 col1, col2 = st.columns(2)
 
                 with col1:
                     confidence_level = st.slider(
-                        "Уровень доверия моделирования (%)",
+                        "Modeling confidence level (%)",
                         min_value=80,
                         max_value=99,
                         value=95,
@@ -3045,7 +2949,7 @@ def run(data_fetcher, portfolio_manager):
                     )
 
                     monte_carlo_sims = st.slider(
-                        "Количество симуляций Монте-Карло",
+                        "Number of Monte Carlo simulations",
                         min_value=100,
                         max_value=5000,
                         value=1000,
@@ -3054,7 +2958,7 @@ def run(data_fetcher, portfolio_manager):
 
                 with col2:
                     recovery_annual_return = st.slider(
-                        "Ожидаемая годовая доходность для восстановления (%)",
+                        "Expected annual return for recovery (%)",
                         min_value=3,
                         max_value=12,
                         value=7,
@@ -3062,39 +2966,35 @@ def run(data_fetcher, portfolio_manager):
                     ) / 100
 
                     fat_tail_factor = st.slider(
-                        "Коэффициент тяжелых хвостов",
+                        "Heavy tail ratio",
                         min_value=1.0,
                         max_value=3.0,
                         value=1.5,
                         step=0.1,
-                        help="Увеличивает вероятность экстремальных событий. Значение 1.0 соответствует нормальному распределению."
+                        help="Increases the probability of extreme events. A value of 1.0 corresponds to a normal distribution."
                     )
 
             if selected_extreme_scenarios:
-                # Загрузка исторических данных для более реалистичного моделирования
-                if st.button("Провести анализ экстремальных сценариев"):
-                    with st.spinner("Выполнение анализа экстремальных сценариев..."):
-                        # Загружаем исторические данные
-                        start_date = (datetime.now() - timedelta(days=365 * 5)).strftime('%Y-%m-%d')  # 5 лет истории
+
+                if st.button("Conduct an extreme scenario analysis"):
+                    with st.spinner("Performing extreme scenario analysis..."):
+
+                        start_date = (datetime.now() - timedelta(days=365 * 5)).strftime('%Y-%m-%d')  # 5 years of history
                         end_date = datetime.now().strftime('%Y-%m-%d')
 
-                        # Получаем список тикеров и весов
                         tickers = [asset['ticker'] for asset in portfolio_data['assets']]
                         weights = {asset['ticker']: asset['weight'] for asset in portfolio_data['assets']}
 
-                        # Добавляем SPY для использования как рыночный индикатор
                         if 'SPY' not in tickers:
                             tickers.append('SPY')
 
-                        # Загружаем исторические данные
                         prices_data = data_fetcher.get_batch_data(tickers, start_date, end_date)
 
-                        # Проверяем, что данные загружены успешно
                         if not prices_data or all(df.empty for df in prices_data.values()):
                             st.error(
-                                "Не удалось загрузить исторические данные. Пожалуйста, проверьте тикеры или измените период.")
+                                "Failed to load historical data. Please check tickers or change period.")
                         else:
-                            # Создаем DataFrame с ценами закрытия
+
                             close_prices = pd.DataFrame()
 
                             for ticker, df in prices_data.items():
@@ -3104,189 +3004,172 @@ def run(data_fetcher, portfolio_manager):
                                     elif 'Close' in df.columns:
                                         close_prices[ticker] = df['Close']
 
-                            # Рассчитываем доходности
                             returns = PortfolioAnalytics.calculate_returns(close_prices)
                             portfolio_returns = PortfolioAnalytics.calculate_portfolio_return(returns, weights)
 
-                            # Создаем DataFrame для отображения результатов
+                            # Create a DataFrame to display the results
                             extreme_results = []
 
                             for scenario_key in selected_extreme_scenarios:
                                 scenario = extreme_scenarios[scenario_key]
 
-                                # Основные данные о сценарии
+                                # Basic information about the scenario
                                 impact = scenario["impact"]
                                 portfolio_loss = extreme_portfolio_value * impact
                                 portfolio_after_shock = extreme_portfolio_value + portfolio_loss
 
-                                # Расчет VaR и CVaR на основе исторических данных для более реалистичной оценки
                                 if not portfolio_returns.empty:
-                                    # Моделируем хвосты распределения с учетом коэффициента тяжелых хвостов
-                                    # и используем исторические данные для более реалистичного результата
+
                                     hist_std = portfolio_returns.std()
 
-                                    # Генерируем случайные возвраты с тяжелыми хвостами
-                                    np.random.seed(42)  # Для воспроизводимости
+                                    np.random.seed(42)
                                     sim_returns = []
 
-                                    # Генерируем симуляции с более тяжелыми хвостами для реалистичности
                                     for _ in range(monte_carlo_sims):
-                                        # Используем t-распределение для моделирования тяжелых хвостов
-                                        # Меньшее число степеней свободы дает более тяжелые хвосты
-                                        degrees_of_freedom = 4  # Чем меньше, тем тяжелее хвосты
+
+                                        degrees_of_freedom = 4
                                         t_random = np.random.standard_t(degrees_of_freedom)
 
-                                        # Масштабируем t-распределение к нужной волатильности
                                         shock = t_random * hist_std * fat_tail_factor * (
-                                                    -impact / 0.5)  # Нормализуем к impact
+                                                    -impact / 0.5)
                                         sim_returns.append(shock)
 
-                                    # Рассчитываем VaR как квантиль симулированных возвратов
                                     var_level = np.percentile(sim_returns, 100 - confidence_level)
 
-                                    # Рассчитываем CVaR как среднее значений хуже VaR
                                     cvar_values = [r for r in sim_returns if r <= var_level]
                                     cvar = np.mean(cvar_values) if cvar_values else var_level
 
-                                    # Преобразуем в денежные значения
                                     var_amount = extreme_portfolio_value * var_level
                                     cvar_amount = extreme_portfolio_value * cvar
                                 else:
-                                    # Если нет исторических данных, используем приближения
-                                    var_amount = portfolio_loss * 1.2  # Примерно на 20% хуже среднего сценария
-                                    cvar_amount = portfolio_loss * 1.4  # Примерно на 40% хуже среднего сценария
 
-                                # Рассчитываем восстановление (примерное)
+                                    var_amount = portfolio_loss * 1.2
+                                    cvar_amount = portfolio_loss * 1.4
+
                                 daily_return = (1 + recovery_annual_return) ** (1 / 252) - 1
 
                                 if impact < 0:
-                                    # Рассчитываем количество дней для восстановления
+
                                     recovery_days = -np.log(1 + impact) / np.log(1 + daily_return)
-                                    recovery_months = recovery_days / 21  # примерно 21 торговый день в месяце
+                                    recovery_months = recovery_days / 21
                                 else:
                                     recovery_days = 0
                                     recovery_months = 0
 
-                                # Добавляем сценарий в результаты
                                 extreme_results.append({
-                                    'Сценарий': scenario["name"],
-                                    'Описание': scenario["description"],
-                                    'Шок (%)': impact * 100,
-                                    'Потеря ($)': portfolio_loss,
-                                    'Стоимость после шока ($)': portfolio_after_shock,
-                                    'VaR при {0}% ($)'.format(confidence_level): var_amount,
-                                    'CVaR при {0}% ($)'.format(confidence_level): cvar_amount,
-                                    'Восстановление (мес.)': recovery_months,
+                                    'Scenario': scenario["name"],
+                                    'Description': scenario["description"],
+                                    'Shock (%)': impact * 100,
+                                    'Loss ($)': portfolio_loss,
+                                    'Value after shock ($)': portfolio_after_shock,
+                                    'VaR at {0}% ($)'.format(confidence_level): var_amount,
+                                    'CVaR at {0}% ($)'.format(confidence_level): cvar_amount,
+                                    'Recovery (months)': recovery_months,
                                     'key': scenario_key,
                                     'details': scenario["details"]
                                 })
 
-                            # Отображаем результаты
-                            st.subheader("Результаты анализа экстремальных сценариев")
+                            st.subheader("Results of the analysis of extreme scenarios")
 
-                            # Создаем DataFrame для визуализации
                             result_df = pd.DataFrame(extreme_results)
                             result_df_display = result_df[[
-                                'Сценарий', 'Шок (%)', 'Потеря ($)', 'Стоимость после шока ($)', 'Восстановление (мес.)'
+                                'Scenario', 'Shock (%)', 'Loss ($)', 'Value after shock ($)', 'Recovery (months)'
                             ]]
 
-                            # Отображаем результаты как таблицу
+                            # Display the results as a table
                             st.dataframe(result_df_display.style.format({
-                                'Шок (%)': '{:.1f}%',
-                                'Потеря ($)': '${:.2f}',
-                                'Стоимость после шока ($)': '${:.2f}',
-                                'Восстановление (мес.)': '{:.1f}'
+                                'Shock (%)': '{:.1f}%',
+                                'Loss ($)': '${:.2f}',
+                                'Value after shock ($)': '${:.2f}',
+                                'Recovery (months)': '{:.1f}'
                             }), use_container_width=True)
 
-                            # Визуализация потерь по сценариям
+                            # Visualization of losses by scenarios
                             fig_extreme = px.bar(
                                 result_df,
-                                x='Сценарий',
-                                y='Потеря ($)',
-                                color='Шок (%)',
+                                x='Scenario',
+                                y='Loss ($)',
+                                color='Shock (%)',
                                 color_continuous_scale='RdYlGn',
-                                title='Влияние экстремальных сценариев на портфель'
+                                title='Impact of extreme scenarios on portfolio'
                             )
 
                             fig_extreme.update_layout(
-                                xaxis_title='Сценарий',
-                                yaxis_title='Потеря стоимости ($)',
+                                xaxis_title='Scenario',
+                                yaxis_title='Loss of Value ($)',
                                 height=500
                             )
 
                             st.plotly_chart(fig_extreme, use_container_width=True)
 
-                            # Детальная информация о каждом сценарии
-                            st.subheader("Детальное описание сценариев")
+                            st.subheader("Detailed description of scenarios")
 
                             for scenario_key in selected_extreme_scenarios:
                                 scenario = extreme_scenarios[scenario_key]
                                 scenario_result = next((r for r in extreme_results if r['key'] == scenario_key), None)
 
                                 if scenario_result:
-                                    with st.expander(f"{scenario['name']} - Подробности"):
-                                        st.write(f"**Описание**: {scenario['description']}")
-                                        st.write(f"**Детали**: {scenario['details']}")
+                                    with st.expander(f"{scenario['name']} - Details"):
+                                        st.write(f"**Description**: {scenario['description']}")
+                                        st.write(f"**Details**: {scenario['details']}")
 
                                         col1, col2, col3 = st.columns(3)
 
                                         with col1:
                                             st.metric(
-                                                "Прогнозируемая потеря",
-                                                f"${abs(scenario_result['Потеря ($)']):.2f}",
-                                                f"{scenario_result['Шок (%)']}%",
+                                                "Expected loss",
+                                                f"${abs(scenario_result['Loss ($)']):.2f}",
+                                                f"{scenario_result['Shock (%)']}%",
                                                 delta_color="inverse"
                                             )
 
                                         with col2:
                                             st.metric(
-                                                f"VaR при {confidence_level}%",
-                                                f"${abs(scenario_result['VaR при {0}% ($)'.format(confidence_level)]):.2f}"
+                                                f"VaR at {confidence_level}%",
+                                                f"${abs(scenario_result['VaR at {0}% ($)'.format(confidence_level)]):.2f}"
                                             )
 
                                         with col3:
                                             st.metric(
-                                                "Время восстановления",
-                                                f"{scenario_result['Восстановление (мес.)']:.1f} мес."
+                                                "Recovery time",
+                                                f"{scenario_result['Recovery (months)']:.1f} мес."
                                             )
 
-                            # Дополнительная информация о распределении потенциальных потерь
-                            st.subheader("Распределение потенциальных потерь")
+                            # Additional information on the distribution of potential losses
+                            st.subheader("Distribution of potential losses")
 
-                            # Визуализация распределения потерь через симуляцию
                             sim_losses = []
                             for _ in range(monte_carlo_sims):
-                                # Используем t-распределение для тяжелых хвостов
-                                t_random = np.random.standard_t(4)  # 4 степени свободы
-                                # Масштабируем к волатильности портфеля
-                                portfolio_volatility = portfolio_returns.std() * np.sqrt(252)  # Годовая волатильность
-                                # Симулируем экстремальные потери
+
+                                t_random = np.random.standard_t(4)
+
+                                portfolio_volatility = portfolio_returns.std() * np.sqrt(252)
+
                                 extreme_loss = -abs(
                                     t_random) * portfolio_volatility * fat_tail_factor * extreme_portfolio_value * 0.2
                                 sim_losses.append(extreme_loss)
 
-                            # Создаем гистограмму потерь
                             fig_dist = px.histogram(
                                 sim_losses,
                                 nbins=50,
-                                title='Распределение потенциальных экстремальных потерь',
-                                labels={'value': 'Потеря ($)', 'count': 'Частота'},
+                                title='Distribution of potential extreme losses',
+                                labels={'value': 'Loss ($)', 'count': 'Frequency'},
                                 color_discrete_sequence=['rgba(255, 0, 0, 0.6)']
                             )
 
                             # Добавляем вертикальные линии для потерь по сценариям
                             for scenario_result in extreme_results:
                                 fig_dist.add_vline(
-                                    x=scenario_result['Потеря ($)'],
+                                    x=scenario_result['Loss ($)'],
                                     line_dash="dash",
                                     line_color="red",
-                                    annotation_text=scenario_result['Сценарий'],
+                                    annotation_text=scenario_result['Scenario'],
                                     annotation_position="top right"
                                 )
 
                             fig_dist.update_layout(
-                                xaxis_title='Потенциальная потеря ($)',
-                                yaxis_title='Частота',
+                                xaxis_title='Potential loss ($)',
+                                yaxis_title='Frequency',
                                 showlegend=False
                             )
 
@@ -3294,53 +3177,50 @@ def run(data_fetcher, portfolio_manager):
 
                             # Добавление предупреждения об интерпретации
                             st.info("""
-                            **Важное замечание о моделировании экстремальных событий:**
-
-                            Экстремальные сценарии представляют собой редкие и маловероятные события, которые сложно точно смоделировать.
-                            Реальные потери могут отличаться от прогнозируемых. Данный анализ следует рассматривать как иллюстративный,
-                            а не как точный прогноз. Кроме того, влияние экстремальных событий на разные классы активов может существенно
-                            отличаться и меняться со временем.
+                                **Important note about extreme event modeling:**
+                                
+                                Extreme scenarios represent rare and unlikely events that are difficult to accurately model.
+                                Actual losses may differ from those projected. This analysis should be considered illustrative,
+                                
+                                not an exact forecast. In addition, the impact of extreme events on different asset classes may differ significantly
+                                
+                                and change over time.
                             """)
 
-    # В portfolio_analysis.py
-    with tabs[6]:  # Вкладка "Скользящие метрики"
-        st.subheader("Скользящие метрики")
+    with tabs[6]:
+        st.subheader("Rolling metrics")
 
-        # Создаем подвкладки для разных видов скользящих метрик
         rolling_tabs = st.tabs([
-            "Волатильность",
-            "Коэффициенты",
-            "Скользящая бета/альфа",
-            "Раздельный анализ"
+            "Volatility",
+            "Ratios",
+            "Rolling Beta/Alpha",
+            "Split Analysis"
         ])
 
         with rolling_tabs[0]:
-            st.subheader("Скользящая волатильность")
+            st.subheader("Sliding volatility")
 
-            # Параметры расчета
             window_size = st.slider(
-                "Размер окна (дней) для волатильности",
+                "Window size (days) for volatility",
                 min_value=21,
                 max_value=252,
                 value=63,
                 step=21
             )
 
-            # Расчет скользящей волатильности
             if isinstance(portfolio_returns.index, pd.DatetimeIndex):
                 rolling_vol = portfolio_returns.rolling(window=window_size).std() * np.sqrt(252) * 100
 
                 if benchmark_returns is not None:
                     benchmark_rolling_vol = benchmark_returns.rolling(window=window_size).std() * np.sqrt(252) * 100
 
-                    # Визуализация скользящей волатильности
                     fig_rolling_vol = go.Figure()
 
                     fig_rolling_vol.add_trace(go.Scatter(
                         x=rolling_vol.index,
                         y=rolling_vol.values,
                         mode='lines',
-                        name='Портфель',
+                        name='Portfolio',
                         line=dict(color='blue', width=2)
                     ))
 
@@ -3353,28 +3233,27 @@ def run(data_fetcher, portfolio_manager):
                     ))
 
                     fig_rolling_vol.update_layout(
-                        title=f'Скользящая волатильность ({window_size} дней)',
-                        xaxis_title='Дата',
-                        yaxis_title='Волатильность (%)',
+                        title=f'Moving volatility ({window_size} days)',
+                        xaxis_title='Date',
+                        yaxis_title='Volatility (%)',
                         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
                         hovermode='x unified'
                     )
 
                     st.plotly_chart(fig_rolling_vol, use_container_width=True)
 
-                    # Статистика волатильности
-                    st.subheader("Статистика волатильности")
+                    st.subheader("Volatility statistics")
 
                     vol_stats = pd.DataFrame({
-                        'Метрика': ['Средняя волатильность (%)', 'Медианная волатильность (%)',
-                                    'Мин. волатильность (%)', 'Макс. волатильность (%)'],
-                        'Портфель': [
+                        'Metric': ['Avg Volatility (%)', 'Median Volatility (%)', 'Min Volatility (%)',
+                                   'Max Volatility (%)'],
+                        'Portfolio': [
                             rolling_vol.mean(),
                             rolling_vol.median(),
                             rolling_vol.min(),
                             rolling_vol.max()
                         ],
-                        'Бенчмарк': [
+                        'Benchmark': [
                             benchmark_rolling_vol.mean(),
                             benchmark_rolling_vol.median(),
                             benchmark_rolling_vol.min(),
@@ -3383,16 +3262,16 @@ def run(data_fetcher, portfolio_manager):
                     })
 
                     st.dataframe(vol_stats.style.format({
-                        'Портфель': '{:.2f}',
-                        'Бенчмарк': '{:.2f}'
+                        'Portfolio': '{:.2f}',
+                        'Benchmark': '{:.2f}'
                     }), use_container_width=True)
 
         with rolling_tabs[1]:
-            st.subheader("Скользящие коэффициенты риска")
+            st.subheader("Sliding risk coefficients")
 
             # Параметры расчета
             coef_window_size = st.slider(
-                "Размер окна (дней) для коэффициентов",
+                "Window size (days) for coefficients",
                 min_value=63,
                 max_value=252,
                 value=126,
@@ -3400,7 +3279,7 @@ def run(data_fetcher, portfolio_manager):
             )
 
             if isinstance(portfolio_returns.index, pd.DatetimeIndex):
-                # Создаем функцию для расчета Sharpe и Sortino в скользящем окне
+
                 def rolling_sharpe_sortino(returns, window, risk_free=0):
                     rolling_sharpe = []
                     rolling_sortino = []
@@ -3409,7 +3288,7 @@ def run(data_fetcher, portfolio_manager):
                         window_returns = returns.iloc[i - window:i]
 
                         # Sharpe
-                        excess_returns = window_returns - risk_free / 252  # дневной risk-free
+                        excess_returns = window_returns - risk_free / 252
                         sharpe = excess_returns.mean() / window_returns.std() * np.sqrt(252)
                         rolling_sharpe.append(sharpe)
 
@@ -3427,25 +3306,24 @@ def run(data_fetcher, portfolio_manager):
                                                                                                   index=returns.index[
                                                                                                         window - 1:])
 
-                # Рассчитываем скользящие коэффициенты
+                # Calculate sliding coefficients
                 rolling_sharpe, rolling_sortino = rolling_sharpe_sortino(
                     portfolio_returns, coef_window_size, config.RISK_FREE_RATE
                 )
 
-                # Рассчитываем для бенчмарка, если он доступен
+                # Calculate for benchmark if available
                 if benchmark_returns is not None:
                     benchmark_rolling_sharpe, benchmark_rolling_sortino = rolling_sharpe_sortino(
                         benchmark_returns, coef_window_size, config.RISK_FREE_RATE
                     )
 
-                    # Визуализация скользящего коэффициента Шарпа
                     fig_rolling_sharpe = go.Figure()
 
                     fig_rolling_sharpe.add_trace(go.Scatter(
                         x=rolling_sharpe.index,
                         y=rolling_sharpe.values,
                         mode='lines',
-                        name='Портфель',
+                        name='Portfolio',
                         line=dict(color='blue', width=2)
                     ))
 
@@ -3457,28 +3335,27 @@ def run(data_fetcher, portfolio_manager):
                         line=dict(color='orange', width=2, dash='dash')
                     ))
 
-                    # Добавляем линию нулевого Шарпа
+
                     fig_rolling_sharpe.add_hline(y=0, line_dash="dash", line_color="red",
-                                                 annotation_text="Нулевой Шарп")
+                                                 annotation_text="Zero Sharpe")
 
                     fig_rolling_sharpe.update_layout(
-                        title=f'Скользящий коэффициент Шарпа ({coef_window_size} дней)',
-                        xaxis_title='Дата',
-                        yaxis_title='Коэффициент Шарпа',
+                        title=f'Rolling Sharpe Ratio ({coef_window_size} days)',
+                        xaxis_title='Date',
+                        yaxis_title='Sharpe ratio',
                         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
                         hovermode='x unified'
                     )
 
                     st.plotly_chart(fig_rolling_sharpe, use_container_width=True)
 
-                    # Визуализация скользящего коэффициента Сортино
                     fig_rolling_sortino = go.Figure()
 
                     fig_rolling_sortino.add_trace(go.Scatter(
                         x=rolling_sortino.index,
                         y=rolling_sortino.values,
                         mode='lines',
-                        name='Портфель',
+                        name='Portfolio',
                         line=dict(color='blue', width=2)
                     ))
 
@@ -3490,14 +3367,14 @@ def run(data_fetcher, portfolio_manager):
                         line=dict(color='orange', width=2, dash='dash')
                     ))
 
-                    # Добавляем линию нулевого Сортино
+
                     fig_rolling_sortino.add_hline(y=0, line_dash="dash", line_color="red",
-                                                  annotation_text="Нулевой Сортино")
+                                                  annotation_text="Zero Sortino")
 
                     fig_rolling_sortino.update_layout(
-                        title=f'Скользящий коэффициент Сортино ({coef_window_size} дней)',
-                        xaxis_title='Дата',
-                        yaxis_title='Коэффициент Сортино',
+                        title=f'Rolling Sortino Ratio ({coef_window_size} days)',
+                        xaxis_title='Date',
+                        yaxis_title='Sortino ratio',
                         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
                         hovermode='x unified'
                     )
@@ -3505,11 +3382,10 @@ def run(data_fetcher, portfolio_manager):
                     st.plotly_chart(fig_rolling_sortino, use_container_width=True)
 
         with rolling_tabs[2]:
-            st.subheader("Скользящая бета и альфа")
+            st.subheader("Rolling beta and alpha")
 
-            # Параметры расчета
             beta_window_size = st.slider(
-                "Размер окна (дней) для беты и альфы",
+                "Window size (days) for beta and alpha",
                 min_value=63,
                 max_value=252,
                 value=126,
@@ -3518,105 +3394,102 @@ def run(data_fetcher, portfolio_manager):
             )
 
             if isinstance(portfolio_returns.index, pd.DatetimeIndex) and benchmark_returns is not None:
-                # Рассчитываем скользящую бету
+
                 rolling_cov = portfolio_returns.rolling(window=beta_window_size).cov(benchmark_returns)
                 rolling_var = benchmark_returns.rolling(window=beta_window_size).var()
                 rolling_beta = rolling_cov / rolling_var
 
-                # Рассчитываем скользящую альфу
                 rolling_portfolio_return = portfolio_returns.rolling(window=beta_window_size).mean() * 252
                 rolling_benchmark_return = benchmark_returns.rolling(window=beta_window_size).mean() * 252
                 rolling_alpha = rolling_portfolio_return - (
                             config.RISK_FREE_RATE + rolling_beta * (rolling_benchmark_return - config.RISK_FREE_RATE))
 
-                # Визуализация скользящей беты
                 fig_rolling_beta = go.Figure()
 
                 fig_rolling_beta.add_trace(go.Scatter(
                     x=rolling_beta.index,
                     y=rolling_beta.values,
                     mode='lines',
-                    name='Бета',
+                    name='Beta',
                     line=dict(color='purple', width=2)
                 ))
 
-                # Добавляем линии для уровней беты
-                fig_rolling_beta.add_hline(y=1, line_dash="dash", line_color="black",
-                                           annotation_text="Бета = 1")
+                fig_rolling_beta.add_hline(y=1, line_dash="dash", line_color="grey",
+                                           annotation_text="Beta = 1")
                 fig_rolling_beta.add_hline(y=0, line_dash="dash", line_color="green",
-                                           annotation_text="Бета = 0")
+                                           annotation_text="Beta = 0")
 
                 fig_rolling_beta.update_layout(
-                    title=f'Скользящая бета ({beta_window_size} дней)',
-                    xaxis_title='Дата',
-                    yaxis_title='Бета',
+                    title=f'Rolling beta ({beta_window_size} days)',
+                    xaxis_title='Date',
+                    yaxis_title='Beta',
                     hovermode='x unified'
                 )
 
                 st.plotly_chart(fig_rolling_beta, use_container_width=True)
 
-                # Визуализация скользящей альфы
                 fig_rolling_alpha = go.Figure()
 
                 fig_rolling_alpha.add_trace(go.Scatter(
                     x=rolling_alpha.index,
-                    y=rolling_alpha.values * 100,  # переводим в проценты
+                    y=rolling_alpha.values * 100,
                     mode='lines',
-                    name='Альфа',
+                    name='Alpha',
                     line=dict(color='green', width=2)
                 ))
 
-                # Добавляем линию нулевой альфы
                 fig_rolling_alpha.add_hline(y=0, line_dash="dash", line_color="red",
-                                            annotation_text="Альфа = 0")
+                                            annotation_text="Alpha = 0")
 
                 fig_rolling_alpha.update_layout(
-                    title=f'Скользящая альфа ({beta_window_size} дней)',
-                    xaxis_title='Дата',
-                    yaxis_title='Альфа (%)',
+                    title=f'Rolling alpha ({beta_window_size} days)',
+                    xaxis_title='Date',
+                    yaxis_title='Alpha (%)',
                     hovermode='x unified'
                 )
 
                 st.plotly_chart(fig_rolling_alpha, use_container_width=True)
 
         with rolling_tabs[3]:
-            st.subheader("Раздельный анализ бычьих и медвежьих периодов")
+            st.subheader("Separate analysis of bullish and bearish periods")
 
             if isinstance(portfolio_returns.index, pd.DatetimeIndex) and benchmark_returns is not None:
-                # Создаем маски для бычьих и медвежьих периодов
-                bull_market = benchmark_returns > 0
-                bear_market = benchmark_returns < 0
 
-                # Рассчитываем доходность в бычьи и медвежьи периоды
-                bull_portfolio_return = portfolio_returns[bull_market].mean() * 252 * 100
-                bear_portfolio_return = portfolio_returns[bear_market].mean() * 252 * 100
+                common_index = portfolio_returns.index.intersection(benchmark_returns.index)
 
-                bull_benchmark_return = benchmark_returns[bull_market].mean() * 252 * 100
-                bear_benchmark_return = benchmark_returns[bear_market].mean() * 252 * 100
+                portfolio_returns_aligned = portfolio_returns.loc[common_index]
+                benchmark_returns_aligned = benchmark_returns.loc[common_index]
 
-                # Рассчитываем беты в разные периоды
+                bull_market = benchmark_returns_aligned > 0
+                bear_market = benchmark_returns_aligned < 0
+
+                bull_portfolio_return = portfolio_returns_aligned[bull_market].mean() * 252 * 100
+                bear_portfolio_return = portfolio_returns_aligned[bear_market].mean() * 252 * 100
+
+                bull_benchmark_return = benchmark_returns_aligned[bull_market].mean() * 252 * 100
+                bear_benchmark_return = benchmark_returns_aligned[bear_market].mean() * 252 * 100
+
                 if bull_market.sum() > 0:
-                    bull_beta = portfolio_returns[bull_market].cov(benchmark_returns[bull_market]) / benchmark_returns[
-                        bull_market].var()
+                    bull_beta = portfolio_returns_aligned[bull_market].cov(benchmark_returns_aligned[bull_market]) / \
+                                benchmark_returns_aligned[bull_market].var()
                 else:
                     bull_beta = 0
 
                 if bear_market.sum() > 0:
-                    bear_beta = portfolio_returns[bear_market].cov(benchmark_returns[bear_market]) / benchmark_returns[
-                        bear_market].var()
+                    bear_beta = portfolio_returns_aligned[bear_market].cov(benchmark_returns_aligned[bear_market]) / \
+                                benchmark_returns_aligned[bear_market].var()
                 else:
                     bear_beta = 0
 
-                # Создаем DataFrame для отображения
                 market_conditions_df = pd.DataFrame({
-                    'Метрика': ['Доходность портфеля (%)', 'Доходность бенчмарка (%)', 'Бета', 'Разница (%)'],
-                    'Растущий рынок': [
+                    'Metric': ['Portfolio Return (%)', 'Benchmark Return (%)', 'Beta', 'Difference (%)'],
+                    'Bullish market': [
                         bull_portfolio_return,
                         bull_benchmark_return,
                         bull_beta,
                         bull_portfolio_return - bull_benchmark_return
                     ],
-                    'Падающий рынок': [
+                    'Bearish market': [
                         bear_portfolio_return,
                         bear_benchmark_return,
                         bear_beta,
@@ -3624,42 +3497,40 @@ def run(data_fetcher, portfolio_manager):
                     ]
                 })
 
-                # Отображаем таблицу
                 st.dataframe(market_conditions_df.style.format({
-                    'Растущий рынок': '{:.2f}',
-                    'Падающий рынок': '{:.2f}'
+                    'Bullish market': '{:.2f}',
+                    'Bearish market': '{:.2f}'
                 }), use_container_width=True)
 
-                # Визуализация доходности в разные периоды
                 fig_market_conditions = go.Figure()
 
                 fig_market_conditions.add_trace(go.Bar(
-                    x=['Растущий рынок', 'Падающий рынок'],
+                    x=['Bullish market', 'Bearish market'],
                     y=[bull_portfolio_return, bear_portfolio_return],
-                    name='Портфель',
+                    name='Portfolio',
                     marker_color='blue'
                 ))
 
                 fig_market_conditions.add_trace(go.Bar(
-                    x=['Растущий рынок', 'Падающий рынок'],
+                    x=['Bullish market', 'Bearish market'],
                     y=[bull_benchmark_return, bear_benchmark_return],
                     name=benchmark,
                     marker_color='orange'
                 ))
 
                 fig_market_conditions.update_layout(
-                    title='Сравнение доходности в разные периоды рынка',
-                    xaxis_title='Состояние рынка',
-                    yaxis_title='Годовая доходность (%)',
+                    title='Comparison of returns in different periods of the market',
+                    xaxis_title='Market status',
+                    yaxis_title='Annual Return (%)',
                     barmode='group',
                     legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
                 )
 
                 st.plotly_chart(fig_market_conditions, use_container_width=True)
 
-                # Скользящая производительность в разные периоды
+                # Rolling performance over time
                 bull_window_size = st.slider(
-                    "Размер окна (дней) для анализа периодов",
+                    "Window size (days) for period analysis",
                     min_value=63,
                     max_value=252,
                     value=126,
@@ -3667,30 +3538,38 @@ def run(data_fetcher, portfolio_manager):
                     key="bull_window_size"
                 )
 
-                # Рассчитываем скользящую бету в бычьи/медвежьи периоды
-                # Для каждого окна определяем, преобладает ли бычий или медвежий рынок
+                #Calculate the rolling beta in bullish/bearish periods
+                # For each window, determine whether the market is bullish or bearish
                 rolling_bull_beta = []
                 rolling_bear_beta = []
                 dates = []
 
                 for i in range(bull_window_size, len(benchmark_returns)):
-                    window_benchmark = benchmark_returns.iloc[i - bull_window_size:i]
-                    window_portfolio = portfolio_returns.iloc[i - bull_window_size:i]
+
+                    window_start_idx = i - bull_window_size
+                    window_end_idx = i
+
+                    window_dates = benchmark_returns.index[window_start_idx:window_end_idx]
                     window_date = benchmark_returns.index[i]
 
-                    # Определяем бычий/медвежий периоды в окне
+                    window_benchmark = benchmark_returns.loc[window_dates]
+                    window_portfolio = portfolio_returns.loc[window_dates]
+
+                    common_dates = window_benchmark.index.intersection(window_portfolio.index)
+                    window_benchmark = window_benchmark.loc[common_dates]
+                    window_portfolio = window_portfolio.loc[common_dates]
+
                     window_bull = window_benchmark > 0
                     window_bear = window_benchmark < 0
 
-                    # Рассчитываем беты, если есть достаточно данных
-                    if window_bull.sum() > 10:  # Минимум 10 дней
+                    if window_bull.sum() > 10:
                         bull_beta_val = window_portfolio[window_bull].cov(window_benchmark[window_bull]) / \
                                         window_benchmark[window_bull].var()
                         rolling_bull_beta.append(bull_beta_val)
                     else:
                         rolling_bull_beta.append(np.nan)
 
-                    if window_bear.sum() > 10:  # Минимум 10 дней
+                    if window_bear.sum() > 10:
                         bear_beta_val = window_portfolio[window_bear].cov(window_benchmark[window_bear]) / \
                                         window_benchmark[window_bear].var()
                         rolling_bear_beta.append(bear_beta_val)
@@ -3699,18 +3578,16 @@ def run(data_fetcher, portfolio_manager):
 
                     dates.append(window_date)
 
-                # Создаем Series из рассчитанных значений
                 rolling_bull_beta_series = pd.Series(rolling_bull_beta, index=dates)
                 rolling_bear_beta_series = pd.Series(rolling_bear_beta, index=dates)
 
-                # Визуализация скользящих бет
                 fig_bull_bear_beta = go.Figure()
 
                 fig_bull_bear_beta.add_trace(go.Scatter(
                     x=rolling_bull_beta_series.index,
                     y=rolling_bull_beta_series.values,
                     mode='lines',
-                    name='Бета в растущий рынок',
+                    name='Beta in a bullish market',
                     line=dict(color='green', width=2)
                 ))
 
@@ -3718,63 +3595,57 @@ def run(data_fetcher, portfolio_manager):
                     x=rolling_bear_beta_series.index,
                     y=rolling_bear_beta_series.values,
                     mode='lines',
-                    name='Бета в падающий рынок',
+                    name='Beta in a bearish market',
                     line=dict(color='red', width=2)
                 ))
 
-                # Добавляем линию единичной беты
-                fig_bull_bear_beta.add_hline(y=1, line_dash="dash", line_color="black",
-                                             annotation_text="Бета = 1")
+                fig_bull_bear_beta.add_hline(y=1, line_dash="dash", line_color="grey",
+                                             annotation_text="Beta = 1")
 
                 fig_bull_bear_beta.update_layout(
-                    title=f'Скользящие беты в разные периоды рынка ({bull_window_size} дней)',
-                    xaxis_title='Дата',
-                    yaxis_title='Бета',
+                    title=f'Rolling beta in different market periods ({bull_window_size} days)',
+                    xaxis_title='Date',
+                    yaxis_title='Beta',
                     legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
                     hovermode='x unified'
                 )
 
                 st.plotly_chart(fig_bull_bear_beta, use_container_width=True)
 
-    with tabs[7]:  # Вкладка "Расширенный анализ"
-        st.subheader("Расширенный анализ")
+    with tabs[7]:
+        st.subheader("Advanced Analysis")
 
-        # Создаем подвкладки для разных видов расширенного анализа
         advanced_tabs = st.tabs([
-            "Календарь доходности",
-            "Сезонный анализ",
-            "Квантили распределения",
-            "Множественные метрики"
+            "Yield Calendar",
+            "Seasonal Analysis",
+            "Distribution Quantiles",
+            "Multiple Metrics"
         ])
 
         with advanced_tabs[0]:
-            st.subheader("Календарь месячных доходностей")
+            st.subheader("Monthly Return Calendar")
 
-            # Создаем календарь месячных доходностей
             if isinstance(portfolio_returns.index, pd.DatetimeIndex):
                 monthly_returns = portfolio_returns.resample('M').apply(lambda x: (1 + x).prod() - 1)
 
-                # Создаем сводную таблицу
                 monthly_df = pd.DataFrame({
                     'year': monthly_returns.index.year,
                     'month': monthly_returns.index.month,
-                    'return': monthly_returns.values * 100  # В процентах
+                    'return': monthly_returns.values * 100
                 })
 
-                # Создаем сводную таблицу с годами по строкам и месяцами по столбцам
                 heatmap_data = monthly_df.pivot(index='year', columns='month', values='return')
 
-                # Переименовываем столбцы в названия месяцев
                 month_names = {
-                    1: 'Янв', 2: 'Фев', 3: 'Мар', 4: 'Апр', 5: 'Май', 6: 'Июн',
-                    7: 'Июл', 8: 'Авг', 9: 'Сен', 10: 'Окт', 11: 'Ноя', 12: 'Дек'
+                    1: 'January', 2: 'February', 3: 'March', 4: 'Apr', 5: 'May', 6: 'June', 7: 'July', 8: 'Aug',
+                    9: 'Sep', 10: 'Oct', 11: 'Nov', 12: 'Dec'
                 }
                 heatmap_data = heatmap_data.rename(columns=month_names)
 
-                # Визуализируем тепловую карту
+                # Visualize the heat map
                 fig_heatmap = px.imshow(
                     heatmap_data,
-                    labels=dict(x="Месяц", y="Год", color="Доходность (%)"),
+                    labels=dict(x="Month", y="Year", color="Return (%)"),
                     x=heatmap_data.columns,
                     y=heatmap_data.index,
                     color_continuous_scale='RdYlGn',
@@ -3783,12 +3654,12 @@ def run(data_fetcher, portfolio_manager):
                 )
 
                 fig_heatmap.update_layout(
-                    title='Календарь месячных доходностей (%)'
+                    title='Monthly Return Calendar (%)'
                 )
 
                 st.plotly_chart(fig_heatmap, use_container_width=True)
 
-                # Добавляем столбец с годовой доходностью
+                # Add a column with annual yield
                 if isinstance(portfolio_returns.index, pd.DatetimeIndex):
                     annual_returns = portfolio_returns.resample('A').apply(
                         lambda x: (1 + x).prod() - 1
@@ -3796,29 +3667,26 @@ def run(data_fetcher, portfolio_manager):
 
                     annual_returns.index = annual_returns.index.year
 
-                    # Проверяем, есть ли годы в heatmap_data
                     years_in_heatmap = heatmap_data.index.tolist()
                     annual_returns = annual_returns[annual_returns.index.isin(years_in_heatmap)]
 
                     if not annual_returns.empty:
-                        # Добавляем столбец с годовой доходностью
-                        heatmap_data['Год'] = annual_returns.values
 
-                        # Отображаем обновленную таблицу
+                        heatmap_data['Year'] = annual_returns.values
+
                         st.dataframe(heatmap_data.style.format('{:.2f}%').background_gradient(
                             cmap='RdYlGn', axis=None
                         ), use_container_width=True)
 
         with advanced_tabs[1]:
-            st.subheader("Сезонный анализ")
+            st.subheader("Seasonal analysis")
 
             if isinstance(portfolio_returns.index, pd.DatetimeIndex):
-                # Создаем копию с добавленными колонками для дня недели и месяца
+
                 seasonal_returns = portfolio_returns.copy()
                 seasonal_returns = pd.DataFrame(seasonal_returns)
                 seasonal_returns.columns = ['returns']
 
-                # Добавляем информацию о дне недели и месяце
                 seasonal_returns['day_of_week'] = seasonal_returns.index.day_name()
                 seasonal_returns['month'] = seasonal_returns.index.month_name()
                 seasonal_returns['year'] = seasonal_returns.index.year
@@ -3827,18 +3695,17 @@ def run(data_fetcher, portfolio_manager):
                 col1, col2 = st.columns(2)
 
                 with col1:
-                    # Анализ по дням недели
+
                     day_of_week_returns = seasonal_returns.groupby('day_of_week')['returns'].mean() * 100
 
-                    # Переставляем дни недели в правильном порядке
                     days_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
                     day_of_week_returns = day_of_week_returns.reindex(days_order)
 
                     fig_days = px.bar(
                         x=day_of_week_returns.index,
                         y=day_of_week_returns.values,
-                        title='Средняя доходность по дням недели (%)',
-                        labels={'x': 'День недели', 'y': 'Средняя доходность (%)'},
+                        title='Average return by day of the week (%)',
+                        labels={'x': 'Day of the week', 'y': 'Average return (%)'},
                         color=day_of_week_returns.values,
                         color_continuous_scale='RdYlGn'
                     )
@@ -3846,10 +3713,9 @@ def run(data_fetcher, portfolio_manager):
                     st.plotly_chart(fig_days, use_container_width=True)
 
                 with col2:
-                    # Анализ по месяцам
+
                     month_returns = seasonal_returns.groupby('month')['returns'].mean() * 100
 
-                    # Переставляем месяцы в правильном порядке
                     months_order = ['January', 'February', 'March', 'April', 'May', 'June',
                                     'July', 'August', 'September', 'October', 'November', 'December']
                     month_returns = month_returns.reindex(months_order)
@@ -3857,22 +3723,21 @@ def run(data_fetcher, portfolio_manager):
                     fig_months = px.bar(
                         x=month_returns.index,
                         y=month_returns.values,
-                        title='Средняя доходность по месяцам (%)',
-                        labels={'x': 'Месяц', 'y': 'Средняя доходность (%)'},
+                        title='Average return by month (%)',
+                        labels={'x': 'Month', 'y': 'Average return (%)'},
                         color=month_returns.values,
                         color_continuous_scale='RdYlGn'
                     )
 
                     st.plotly_chart(fig_months, use_container_width=True)
 
-                    # Анализ по кварталам
                 quarter_returns = seasonal_returns.groupby('quarter')['returns'].mean() * 100
 
                 fig_quarters = px.bar(
                     x=quarter_returns.index,
                     y=quarter_returns.values,
-                    title='Средняя доходность по кварталам (%)',
-                    labels={'x': 'Квартал', 'y': 'Средняя доходность (%)'},
+                    title='Average return by quarter (%)',
+                    labels={'x': 'Quarter', 'y': 'Average return (%)'},
                     color=quarter_returns.values,
                     color_continuous_scale='RdYlGn'
                 )
@@ -3880,33 +3745,28 @@ def run(data_fetcher, portfolio_manager):
                 st.plotly_chart(fig_quarters, use_container_width=True)
 
             with advanced_tabs[2]:
-                st.subheader("Квантили распределения доходности")
+                st.subheader("Quantiles of the Return Distribution")
 
-                # Рассчитываем квантили дневной доходности
                 daily_quantiles = portfolio_returns.quantile([0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99]) * 100
 
-                # Создаем DataFrame для отображения
                 quantiles_df = pd.DataFrame({
-                    'Квантиль': ['1%', '5%', '10%', '25%', '50%', '75%', '90%', '95%', '99%'],
-                    'Дневная доходность (%)': daily_quantiles.values.round(2)
+                    'quantile': ['1%', '5%', '10%', '25%', '50%', '75%', '90%', '95%', '99%'],
+                    'Daily return (%)': daily_quantiles.values.round(2)
                 })
 
                 st.dataframe(quantiles_df, use_container_width=True)
 
-                # Визуализируем квантили
                 fig_quantiles = go.Figure()
 
-                # Добавляем боксплот
                 fig_quantiles.add_trace(go.Box(
                     y=portfolio_returns * 100,
-                    name='Портфель',
+                    name='Portfolio',
                     boxpoints='outliers',
                     jitter=0.3,
                     pointpos=-1.8,
                     marker=dict(color='blue')
                 ))
 
-                # Если есть бенчмарк, добавляем его квантили
                 if benchmark_returns is not None:
                     fig_quantiles.add_trace(go.Box(
                         y=benchmark_returns * 100,
@@ -3918,25 +3778,22 @@ def run(data_fetcher, portfolio_manager):
                     ))
 
                 fig_quantiles.update_layout(
-                    title='Распределение дневной доходности (%)',
-                    yaxis_title='Доходность (%)',
+                    title='Distribution of daily returns (%)',
+                    yaxis_title='Return (%)',
                     boxmode='group',
                     showlegend=True
                 )
 
                 st.plotly_chart(fig_quantiles, use_container_width=True)
 
-                # Сравнение с нормальным распределением
-                st.subheader("Сравнение с нормальным распределением")
+                st.subheader("Comparison with normal distribution")
 
                 # Q-Q plot
                 fig_qq = go.Figure()
 
-                # Сортируем и нормализуем доходности
                 sorted_returns = sorted(portfolio_returns * 100)
                 n = len(sorted_returns)
 
-                # Квантили нормального распределения
                 from scipy import stats
                 theoretical_quantiles = [stats.norm.ppf((i + 0.5) / n) for i in range(n)]
                 theoretical_quantiles = np.array(
@@ -3950,7 +3807,6 @@ def run(data_fetcher, portfolio_manager):
                     marker=dict(color='blue', size=5)
                 ))
 
-                # Добавляем диагональную линию для идеального соответствия
                 min_val = min(min(theoretical_quantiles), min(sorted_returns))
                 max_val = max(max(theoretical_quantiles), max(sorted_returns))
 
@@ -3958,201 +3814,190 @@ def run(data_fetcher, portfolio_manager):
                     x=[min_val, max_val],
                     y=[min_val, max_val],
                     mode='lines',
-                    name='Идеальное соответствие',
+                    name='Perfect match',
                     line=dict(color='red', dash='dash')
                 ))
 
                 fig_qq.update_layout(
-                    title='Q-Q Plot (Сравнение с нормальным распределением)',
-                    xaxis_title='Теоретические квантили',
-                    yaxis_title='Фактические квантили',
+                    title='Q-Q Plot (Comparison with normal distribution)',
+                    xaxis_title='Theoretical quantiles',
+                    yaxis_title='Actual quantiles',
                     hovermode='closest'
                 )
 
                 st.plotly_chart(fig_qq, use_container_width=True)
 
-                # Статистические тесты
-                st.subheader("Статистические тесты")
+                st.subheader("Statistical tests")
 
                 try:
-                    # Явно импортируем модуль stats здесь
+
                     from scipy import stats as scipy_stats
 
-                    # Тест Шапиро-Уилка на нормальность
                     shapiro_stat, shapiro_p = scipy_stats.shapiro(portfolio_returns)
 
-                    # Тест Жарке-Бера
                     jb_stat, jb_p = scipy_stats.jarque_bera(portfolio_returns)
 
-                    # Статистика распределения
                     skewness = portfolio_returns.skew()
                     kurtosis = portfolio_returns.kurtosis()
 
-                    # Отображаем результаты
                     stats_results = pd.DataFrame({
-                        'Тест/Метрика': ['Тест Шапиро-Уилка (p-value)', 'Тест Жарке-Бера (p-value)', 'Асимметрия',
-                                         'Эксцесс'],
-                        'Значение': [shapiro_p, jb_p, skewness, kurtosis]
+                        'Test/Metric': ['Shapiro-Wilk test (p-value)', 'Jarque-Bera test (p-value)', 'Skewness',
+                                        'Kurtosis'],
+                        'Meaning': [shapiro_p, jb_p, skewness, kurtosis]
                     })
 
-                    # Интерпретация результатов
                     interpretations = []
 
                     if shapiro_p < 0.05:
-                        interpretations.append("Тест Шапиро-Уилка: Распределение не является нормальным (p < 0.05)")
+                        interpretations.append("Shapiro-Wilk test: Distribution is not normal (p < 0.05)")
                     else:
                         interpretations.append(
-                            "Тест Шапиро-Уилка: Невозможно отвергнуть гипотезу о нормальности (p >= 0.05)")
+                            "Shapiro-Wilk test: Failure to reject the hypothesis of normality (p >= 0.05)")
 
                     if jb_p < 0.05:
-                        interpretations.append("Тест Жарке-Бера: Распределение не является нормальным (p < 0.05)")
+                        interpretations.append("Jarque-Bera test: Distribution is not normal (p < 0.05)")
                     else:
                         interpretations.append(
-                            "Тест Жарке-Бера: Невозможно отвергнуть гипотезу о нормальности (p >= 0.05)")
+                            "Jarque-Bera test: It is impossible to reject the hypothesis of normality (p >= 0.05)")
 
                     if abs(skewness) > 0.5:
-                        direction = "положительную" if skewness > 0 else "отрицательную"
+                        direction = "positive" if skewness > 0 else "negative"
                         interpretations.append(
-                            f"Распределение имеет {direction} асимметрию (толстый хвост в {'правой' if skewness > 0 else 'левой'} части)")
+                            f"The distribution has {direction} asymmetry (fat tail in the {'right' if skewness > 0 else 'left'} part)")
                     else:
-                        interpretations.append("Распределение примерно симметрично")
+                        interpretations.append("The distribution is approximately symmetrical.")
 
                     if kurtosis > 0.5:
-                        interpretations.append("Распределение имеет тяжелые хвосты (лептокуртозис)")
+                        interpretations.append("The distribution has heavy tails (leptokurtosis)")
                     elif kurtosis < -0.5:
-                        interpretations.append("Распределение имеет легкие хвосты (платикуртозис)")
+                        interpretations.append("The distribution has light tails (platykurtosis)")
                     else:
-                        interpretations.append("Эксцесс близок к нормальному распределению")
+                        interpretations.append("The kurtosis is close to the normal distribution")
 
                     st.dataframe(stats_results.style.format({
-                        'Значение': '{:.4f}'
+                        'Meaning': '{:.4f}'
                     }), use_container_width=True)
 
                     for interpretation in interpretations:
                         st.write(f"• {interpretation}")
 
                 except Exception as e:
-                    st.error(f"Не удалось выполнить статистические тесты: {e}")
+                    st.error(f"Statistical tests failed: {e}")
 
             with advanced_tabs[3]:
-                st.subheader("Множественные метрики эффективности")
+                st.subheader("Multiple performance metrics")
 
-                metrics_data = []  # Создаем список вместо DataFrame
+                metrics_data = []
 
-                # Добавляем расширенные метрики доходности
                 metrics_data.append({
-                    'Метрика': 'Общая доходность (%)',
-                    'Портфель': portfolio_metrics.get('total_return', 0) * 100,
-                    'Бенчмарк': portfolio_metrics.get('benchmark_return', 0) * 100,
-                    'Разница': (portfolio_metrics.get('total_return', 0) - portfolio_metrics.get('benchmark_return',
+                    'Metrics': 'Total Return (%)',
+                    'Portfolio': portfolio_metrics.get('total_return', 0) * 100,
+                    'Benchmark': portfolio_metrics.get('benchmark_return', 0) * 100,
+                    'Difference': (portfolio_metrics.get('total_return', 0) - portfolio_metrics.get('benchmark_return',
                                                                                                  0)) * 100
                 })
 
                 metrics_data.append({
-                    'Метрика': 'Годовая доходность (%)',
-                    'Портфель': portfolio_metrics.get('annualized_return', 0) * 100,
-                    'Бенчмарк': portfolio_metrics.get('benchmark_annualized_return',
+                    'Metrics': 'Annual Return (%)',
+                    'Portfolio': portfolio_metrics.get('annualized_return', 0) * 100,
+                    'Benchmark': portfolio_metrics.get('benchmark_annualized_return',
                                                       0) * 100 if 'benchmark_annualized_return' in portfolio_metrics else 0,
-                    'Разница': (portfolio_metrics.get('annualized_return', 0) - portfolio_metrics.get(
+                    'Difference': (portfolio_metrics.get('annualized_return', 0) - portfolio_metrics.get(
                         'benchmark_annualized_return',
                         0)) * 100 if 'benchmark_annualized_return' in portfolio_metrics else 0
                 })
 
-                # Добавляем метрики риска
+
                 metrics_data.append({
-                    'Метрика': 'Волатильность (%)',
-                    'Портфель': portfolio_metrics.get('volatility', 0) * 100,
-                    'Бенчмарк': portfolio_metrics.get('benchmark_volatility',
+                    'Metrics': 'Volatility (%)',
+                    'Portfolio': portfolio_metrics.get('volatility', 0) * 100,
+                    'Benchmark': portfolio_metrics.get('benchmark_volatility',
                                                       0) * 100 if 'benchmark_volatility' in portfolio_metrics else 0,
-                    'Разница': (portfolio_metrics.get('benchmark_volatility', 0) - portfolio_metrics.get('volatility',
+                    'Difference': (portfolio_metrics.get('benchmark_volatility', 0) - portfolio_metrics.get('volatility',
                                                                                                          0)) * 100 if 'benchmark_volatility' in portfolio_metrics else 0
                 })
 
                 metrics_data.append({
-                    'Метрика': 'Максимальная просадка (%)',
-                    'Портфель': portfolio_metrics.get('max_drawdown', 0) * 100,
-                    'Бенчмарк': portfolio_metrics.get('benchmark_max_drawdown',
+                    'Metrics': 'Maximum drawdown (%)',
+                    'Portfolio': portfolio_metrics.get('max_drawdown', 0) * 100,
+                    'Benchmark': portfolio_metrics.get('benchmark_max_drawdown',
                                                       0) * 100 if 'benchmark_max_drawdown' in portfolio_metrics else 0,
-                    'Разница': (portfolio_metrics.get('benchmark_max_drawdown', 0) - portfolio_metrics.get(
+                    'Difference': (portfolio_metrics.get('benchmark_max_drawdown', 0) - portfolio_metrics.get(
                         'max_drawdown', 0)) * 100 if 'benchmark_max_drawdown' in portfolio_metrics else 0
                 })
 
-                # Добавляем коэффициенты
                 metrics_data.append({
-                    'Метрика': 'Коэффициент Шарпа',
-                    'Портфель': portfolio_metrics.get('sharpe_ratio', 0),
-                    'Бенчмарк': portfolio_metrics.get('benchmark_sharpe_ratio',
+                    'Metrics': 'Sharpe ratio',
+                    'Portfolio': portfolio_metrics.get('sharpe_ratio', 0),
+                    'Benchmark': portfolio_metrics.get('benchmark_sharpe_ratio',
                                                       0) if 'benchmark_sharpe_ratio' in portfolio_metrics else 0,
-                    'Разница': portfolio_metrics.get('sharpe_ratio', 0) - portfolio_metrics.get(
+                    'Difference': portfolio_metrics.get('sharpe_ratio', 0) - portfolio_metrics.get(
                         'benchmark_sharpe_ratio', 0) if 'benchmark_sharpe_ratio' in portfolio_metrics else 0
                 })
 
                 metrics_data.append({
-                    'Метрика': 'Коэффициент Сортино',
-                    'Портфель': portfolio_metrics.get('sortino_ratio', 0),
-                    'Бенчмарк': portfolio_metrics.get('benchmark_sortino_ratio',
+                    'Metrics': 'Sortino ratio',
+                    'Portfolio': portfolio_metrics.get('sortino_ratio', 0),
+                    'Benchmark': portfolio_metrics.get('benchmark_sortino_ratio',
                                                       0) if 'benchmark_sortino_ratio' in portfolio_metrics else 0,
-                    'Разница': portfolio_metrics.get('sortino_ratio', 0) - portfolio_metrics.get(
+                    'Difference': portfolio_metrics.get('sortino_ratio', 0) - portfolio_metrics.get(
                         'benchmark_sortino_ratio', 0) if 'benchmark_sortino_ratio' in portfolio_metrics else 0
                 })
 
                 metrics_data.append({
-                    'Метрика': 'Коэффициент Кальмара',
-                    'Портфель': portfolio_metrics.get('calmar_ratio', 0),
-                    'Бенчмарк': portfolio_metrics.get('benchmark_calmar_ratio',
+                    'Metrics': 'Calmar Ratio',
+                    'Portfolio': portfolio_metrics.get('calmar_ratio', 0),
+                    'Benchmark': portfolio_metrics.get('benchmark_calmar_ratio',
                                                       0) if 'benchmark_calmar_ratio' in portfolio_metrics else 0,
-                    'Разница': portfolio_metrics.get('calmar_ratio', 0) - portfolio_metrics.get(
+                    'Difference': portfolio_metrics.get('calmar_ratio', 0) - portfolio_metrics.get(
                         'benchmark_calmar_ratio', 0) if 'benchmark_calmar_ratio' in portfolio_metrics else 0
                 })
 
                 metrics_data.append({
-                    'Метрика': 'Бета',
-                    'Портфель': portfolio_metrics.get('beta', 0),
-                    'Бенчмарк': 1.0,
-                    'Разница': portfolio_metrics.get('beta', 0) - 1.0
+                    'Metrics': 'Beta',
+                    'Portfolio': portfolio_metrics.get('beta', 0),
+                    'Benchmark': 1.0,
+                    'Difference': portfolio_metrics.get('beta', 0) - 1.0
                 })
 
                 metrics_data.append({
-                    'Метрика': 'Альфа (%)',
-                    'Портфель': portfolio_metrics.get('alpha', 0) * 100,
-                    'Бенчмарк': 0.0,
-                    'Разница': portfolio_metrics.get('alpha', 0) * 100
+                    'Metrics': 'Alpha (%)',
+                    'Portfolio': portfolio_metrics.get('alpha', 0) * 100,
+                    'Benchmark': 0.0,
+                    'Difference': portfolio_metrics.get('alpha', 0) * 100
                 })
 
                 metrics_data.append({
-                    'Метрика': 'Информационный коэффициент',
-                    'Портфель': portfolio_metrics.get('information_ratio', 0),
-                    'Бенчмарк': 0.0,
-                    'Разница': portfolio_metrics.get('information_ratio', 0)
-                })
-
-                # Добавляем метрики по результативности
-                metrics_data.append({
-                    'Метрика': 'Доля выигрышей (%)',
-                    'Портфель': portfolio_metrics.get('win_rate', 0) * 100,
-                    'Бенчмарк': 0.0,
-                    'Разница': 0.0
+                    'Metrics': 'Information coefficient',
+                    'Portfolio': portfolio_metrics.get('information_ratio', 0),
+                    'Benchmark': 0.0,
+                    'Difference': portfolio_metrics.get('information_ratio', 0)
                 })
 
                 metrics_data.append({
-                    'Метрика': 'Коэффициент выплат',
-                    'Портфель': portfolio_metrics.get('payoff_ratio', 0),
-                    'Бенчмарк': 0.0,
-                    'Разница': 0.0
+                    'Metrics': 'Win Rate (%)',
+                    'Portfolio': portfolio_metrics.get('win_rate', 0) * 100,
+                    'Benchmark': 0.0,
+                    'Difference': 0.0
                 })
 
                 metrics_data.append({
-                    'Метрика': 'Фактор прибыли',
-                    'Портфель': portfolio_metrics.get('profit_factor', 0),
-                    'Бенчмарк': 0.0,
-                    'Разница': 0.0
+                    'Metrics': 'Payout ratio',
+                    'Portfolio': portfolio_metrics.get('payoff_ratio', 0),
+                    'Benchmark': 0.0,
+                    'Difference': 0.0
+                })
+
+                metrics_data.append({
+                    'Metrics': 'Profit factor',
+                    'Portfolio': portfolio_metrics.get('profit_factor', 0),
+                    'Benchmark': 0.0,
+                    'Difference': 0.0
                 })
 
 
-                # Создаем DataFrame из списка данных
                 metrics_df = pd.DataFrame(metrics_data)
 
-                # Стилизуем DataFrame
                 def color_diff(val):
                     if isinstance(val, float):
                         if val > 0:
@@ -4161,44 +4006,40 @@ def run(data_fetcher, portfolio_manager):
                             return 'background-color: rgba(255, 99, 132, 0.2); color: red'
                     return ''
 
-                # Отображаем таблицу
                 st.dataframe(metrics_df.style.format({
-                    'Портфель': '{:.2f}',
-                    'Бенчмарк': '{:.2f}',
-                    'Разница': '{:.2f}'
-                }).applymap(color_diff, subset=['Разница']), use_container_width=True)
+                    'Portfolio': '{:.2f}',
+                    'Benchmark': '{:.2f}',
+                    'Difference': '{:.2f}'
+                }).applymap(color_diff, subset=['Difference']), use_container_width=True)
 
-                # Визуализация сравнения метрик
-                st.subheader("Визуальное сравнение с бенчмарком")
+                st.subheader("Visual comparison with benchmark")
 
-                # Выбираем метрики для визуализации
-                metrics_to_plot = ['Общая доходность (%)', 'Годовая доходность (%)', 'Волатильность (%)',
-                                   'Максимальная просадка (%)', 'Коэффициент Шарпа', 'Коэффициент Сортино']
+                metrics_to_plot = ['Total Return (%)', 'Annual Return (%)', 'Volatility (%)',
+                                   'Maximum drawdown (%)', 'Sharpe ratio', 'Sortino ratio']
 
-                # Создаем новый DataFrame только с выбранными метриками
-                plot_df = metrics_df[metrics_df['Метрика'].isin(metrics_to_plot)].copy()
+                plot_df = metrics_df[metrics_df['Metrics'].isin(metrics_to_plot)].copy()
 
-                # Визуализация
+
                 fig_metrics = go.Figure()
 
                 fig_metrics.add_trace(go.Bar(
-                    x=plot_df['Метрика'],
-                    y=plot_df['Портфель'],
-                    name='Портфель',
+                    x=plot_df['Metrics'],
+                    y=plot_df['Portfolio'],
+                    name='Portfolio',
                     marker_color='blue'
                 ))
 
                 fig_metrics.add_trace(go.Bar(
-                    x=plot_df['Метрика'],
-                    y=plot_df['Бенчмарк'],
-                    name='Бенчмарк',
+                    x=plot_df['Metrics'],
+                    y=plot_df['Benchmark'],
+                    name='Benchmark',
                     marker_color='orange'
                 ))
 
                 fig_metrics.update_layout(
-                    title='Сравнение ключевых метрик с бенчмарком',
-                    xaxis_title='Метрика',
-                    yaxis_title='Значение',
+                    title='Comparison of key metrics with the benchmark',
+                    xaxis_title='Metrics',
+                    yaxis_title='Meaning',
                     barmode='group',
                     legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
                 )

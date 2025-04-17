@@ -1,5 +1,3 @@
-# src/utils/visualization.py
-
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
@@ -7,7 +5,6 @@ import numpy as np
 from typing import Dict, List, Tuple, Optional, Union
 import io
 import base64
-
 
 class PortfolioVisualization:
     """
@@ -287,44 +284,42 @@ class PortfolioVisualization:
         plt.close(fig)
         return img_str
 
-    # Добавить в класс PortfolioVisualization в файле src/utils/visualization.py
 
-    # Улучшаем масштабирование цветовой шкалы в create_monthly_returns_heatmap
     @staticmethod
     def create_monthly_returns_heatmap(returns: pd.Series) -> pd.DataFrame:
         """
-        Создает таблицу месячных доходностей для визуализации в виде тепловой карты
+        Creates a table of monthly returns for visualization as a heat map
 
         Args:
-            returns: Серия доходностей
+            returns: Income Series
 
         Returns:
-            DataFrame с месячными доходностями, индексированный по годам и месяцам
+            DataFrame of monthly returns indexed by year and month
         """
         if returns.empty or not isinstance(returns.index, pd.DatetimeIndex):
             return pd.DataFrame()
 
-        # Рассчитываем месячные доходности
+        # Calculate monthly returns
         monthly_returns = returns.resample('M').apply(lambda x: (1 + x).prod() - 1)
 
-        # Создаем сводную таблицу
+        # Create a pivot table
         monthly_df = pd.DataFrame({
             'year': monthly_returns.index.year,
             'month': monthly_returns.index.month,
             'return': monthly_returns.values
         })
 
-        # Создаем сводную таблицу с годами по строкам и месяцами по столбцам
+        # Create a pivot table with years in rows and months in columns
         heatmap_data = monthly_df.pivot(index='year', columns='month', values='return')
 
-        # Переименовываем столбцы в названия месяцев
+        # Rename columns to month names
         month_names = {
-            1: 'Янв', 2: 'Фев', 3: 'Мар', 4: 'Апр', 5: 'Май', 6: 'Июн',
-            7: 'Июл', 8: 'Авг', 9: 'Сен', 10: 'Окт', 11: 'Ноя', 12: 'Дек'
+            1: 'Jan', 2: 'Feb', 3: 'Mar', 4: 'Apr', 5: 'May', 6: 'Jun',
+            7: 'Jul', 8: 'Aug', 9: 'Sep', 10: 'Oct', 11: 'Nov', 12: 'Dec'
         }
         heatmap_data = heatmap_data.rename(columns=month_names)
 
-        # Добавляем столбец с годовой доходностью
+        # Add a column with annual yield
         annual_returns = returns.resample('A').apply(lambda x: (1 + x).prod() - 1)
         annual_returns.index = annual_returns.index.year
 
@@ -334,16 +329,16 @@ class PortfolioVisualization:
         if not annual_returns.empty:
             heatmap_data['Год'] = annual_returns.values
 
-        # Расчет разумных границ для цветовой шкалы
-        # Используем персентили вместо мин/макс для устранения выбросов
+        # Calculating reasonable boundaries for the color scale
+        # Using percentiles instead of min/max to eliminate outliers
         flat_data = heatmap_data.values.flatten()
-        flat_data = flat_data[~np.isnan(flat_data)]  # Убираем NaN
+        flat_data = flat_data[~np.isnan(flat_data)]
 
         if len(flat_data) > 0:
-            vmin = np.percentile(flat_data, 5)  # 5-й персентиль
-            vmax = np.percentile(flat_data, 95)  # 95-й персентиль
+            vmin = np.percentile(flat_data, 5)  # 5th percentile
+            vmax = np.percentile(flat_data, 95)  # 95th percentile
 
-            # Балансируем шкалу для лучшего восприятия
+            # Balancing the scale for better perception
             abs_max = max(abs(vmin), abs(vmax))
             heatmap_data.attrs['vmin'] = -abs_max
             heatmap_data.attrs['vmax'] = abs_max
@@ -353,19 +348,19 @@ class PortfolioVisualization:
     @staticmethod
     def create_worst_periods_table(returns: pd.Series, benchmark_returns: pd.Series) -> pd.DataFrame:
         """
-        Создает таблицу худших периодов относительно бенчмарка
+        Creates a table of worst periods relative to the benchmark
 
         Args:
-            returns: Серия доходностей портфеля
-            benchmark_returns: Серия доходностей бенчмарка
+            returns: Portfolio return series
+            benchmark_returns: Benchmark return series
 
-        Returns:
-            DataFrame с информацией о худших периодах
+            Returns:
+                DataFrame with worst-period information
         """
         if returns.empty or benchmark_returns.empty:
             return pd.DataFrame()
 
-        # Нормализуем часовые пояса в индексах
+        # Normalize time zones in indexes
         returns = returns.copy()
         benchmark_returns = benchmark_returns.copy()
 
@@ -375,23 +370,23 @@ class PortfolioVisualization:
         if benchmark_returns.index.tz is not None:
             benchmark_returns.index = benchmark_returns.index.tz_localize(None)
 
-        # Выравниваем серии
+        # Aligning series
         common_index = returns.index.intersection(benchmark_returns.index)
         returns = returns.loc[common_index]
         benchmark_returns = benchmark_returns.loc[common_index]
 
-        # Рассчитываем кумулятивные доходности
+        # Calculating cumulative returns
         cum_returns = (1 + returns).cumprod()
         cum_benchmark = (1 + benchmark_returns).cumprod()
 
-        # Рассчитываем относительную производительность
+        #Calculating relative performance
         relative_performance = cum_returns / cum_benchmark
 
-        # Определяем периоды для анализа (3 месяца, 6 месяцев, 1 год)
+        # We define periods for analysis (3 months, 6 months, 1 year)
         periods = {
-            '3 месяца': 63,  # ~63 торговых дня
-            '6 месяцев': 126,  # ~126 торговых дней
-            '1 год': 252  # ~252 торговых дня
+            '3 месяца': 63,  # ~63 trading days
+            '6 месяцев': 126,  # ~126 trading days
+            '1 год': 252  # ~252 trading days
         }
 
         worst_periods = []
@@ -399,38 +394,38 @@ class PortfolioVisualization:
         for period_name, days in periods.items():
             if len(relative_performance) >= days:
                 try:
-                    # Рассчитываем скользящее изменение относительной производительности
+                    # Calculate the sliding change in relative performance
                     rolling_change = relative_performance.pct_change(days).dropna()
 
-                    # Находим худший период
+                    # Find the worst period
                     worst_date = rolling_change.idxmin()
                     worst_change = rolling_change.loc[worst_date]
 
-                    # Находим начальную дату для худшего периода
+                    # Find the starting date for the worst period
                     start_date = worst_date - pd.Timedelta(days=days)
 
-                    # Проверяем, что начальная дата существует в индексе
+                    # Check if the start date exists in the index
                     if start_date not in cum_returns.index:
-                        # Найдем ближайшую доступную дату
+                        # Find the nearest available date
                         available_dates = cum_returns.index[cum_returns.index <= start_date]
                         if len(available_dates) > 0:
                             start_date = available_dates[-1]
                         else:
                             continue
 
-                    # Рассчитываем доходности за этот период
+                    # We calculate the yield for this period
                     period_return = (cum_returns.loc[worst_date] / cum_returns.loc[start_date]) - 1
                     period_benchmark = (cum_benchmark.loc[worst_date] / cum_benchmark.loc[start_date]) - 1
 
                     worst_periods.append({
-                        'Период': period_name,
-                        'Начало': start_date.strftime('%Y-%m-%d'),
-                        'Конец': worst_date.strftime('%Y-%m-%d'),
-                        'Доходность': period_return,
-                        'Бенчмарк': period_benchmark,
-                        'Разница': period_return - period_benchmark
+                        'Period': period_name,
+                        'Start': start_date.strftime('%Y-%m-%d'),
+                        'End': worst_date.strftime('%Y-%m-%d'),
+                        'Return': period_return,
+                        'Benchmark': period_benchmark,
+                        'Difference': period_return - period_benchmark
                     })
                 except Exception as e:
-                    continue  # Пропускаем период при ошибке
+                    continue  # Skip period on error
 
         return pd.DataFrame(worst_periods)

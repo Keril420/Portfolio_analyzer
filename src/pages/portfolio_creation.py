@@ -1,236 +1,225 @@
-# src/pages/portfolio_creation.py
-
+import sys
+import os
 import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
-import sys
-import os
+import src.config as config
 from datetime import datetime
-import pandas as pd
 
-# Добавляем корень проекта в путь Python
+# Add the project root to the Python path
 sys.path.insert(0, os.path.abspath(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))))
 
-# Используем абсолютные импорты
+# Using absolute imports
 from src.utils.calculations import PortfolioAnalytics
 from src.utils.risk_management import RiskManagement
 from src.utils.visualization import PortfolioVisualization
-import src.config as config
-
 
 def run(data_fetcher, portfolio_manager):
     """
-    Функция для отображения страницы создания портфеля
+    Function to display the portfolio creation page
 
     Args:
-        data_fetcher: Экземпляр DataFetcher для загрузки данных
-        portfolio_manager: Экземпляр PortfolioDataManager для работы с портфелями
+        data_fetcher: DataFetcher instance for loading data
+        portfolio_manager: PortfolioDataManager instance for working with portfolios
     """
-    st.title("Создание портфеля")
+    st.title("Portfolio creation")
 
-    # Создаем вкладки для разных способов создания портфеля
+    # Create tabs for different ways to create a portfolio
     tabs = st.tabs([
-        "Ручной ввод",
-        "Импорт из CSV",
-        "Шаблоны",
-        "Управление портфелями"
+        "Manual input",
+        "Import from CSV",
+        "Templates",
+        "Portfolio management"
     ])
 
-    # Вкладка "Ручной ввод"
     with tabs[0]:
         create_portfolio_manually(data_fetcher, portfolio_manager)
 
-    # Вкладка "Импорт из CSV"
     with tabs[1]:
         import_portfolio_from_csv(data_fetcher, portfolio_manager)
 
-    # Вкладка "Шаблоны"
     with tabs[2]:
         create_portfolio_from_template(data_fetcher, portfolio_manager)
 
-    # Вкладка "Управление портфелями"
     with tabs[3]:
         manage_portfolios(data_fetcher, portfolio_manager)
 
 
 def create_portfolio_manually(data_fetcher, portfolio_manager):
     """
-    Функция для ручного создания портфеля
+    Function for manual portfolio creation
 
     Args:
-        data_fetcher: Экземпляр DataFetcher для загрузки данных
-        portfolio_manager: Экземпляр PortfolioDataManager для работы с портфелями
+        data_fetcher: DataFetcher instance for loading data
+        portfolio_manager: PortfolioDataManager instance for working with portfolios
     """
-    st.header("Ручное создание портфеля")
+    st.header("Manual portfolio creation")
 
-    # Базовая информация о портфеле
-    portfolio_name = st.text_input("Название портфеля", key="manual_portfolio_name")
-    portfolio_description = st.text_area("Описание (опционально)", key="manual_description")
+    # Basic information about the portfolio
+    portfolio_name = st.text_input("Portfolio name", key="manual_portfolio_name")
+    portfolio_description = st.text_area("Description (optional)", key="manual_description")
 
-    # Ввод тикеров и весов
-    st.subheader("Добавление активов")
+    # Entering tickers and weights
+    st.subheader("Adding assets")
 
-    # Метод ввода активов
     input_method = st.radio(
-        "Способ ввода активов",
-        ["Текстовый ввод", "Пошаговое добавление", "Поиск активов"]
+        "Method of entering assets",
+        ["Text input", "Step-by-step adding", "Search for assets"]
     )
 
-    if input_method == "Текстовый ввод":
-        st.write("Введите тикеры и веса в формате:")
+    if input_method == "Text input":
+        st.write("Enter tickers and weights in the format:")
         st.code("AAPL:0.4, MSFT:0.3, GOOGL:0.3")
-        st.write("или")
+        st.write("or")
         st.code("AAPL 0.4, MSFT 0.3, GOOGL 0.3")
-        st.write("или по одному на строку:")
+        st.write("or one per line:")
         st.code("""
         AAPL:0.4
         MSFT:0.3
         GOOGL:0.3
         """)
 
-        tickers_text = st.text_area("Список тикеров и весов", height=200, key="manual_tickers_text")
+        tickers_text = st.text_area("List of tickers and scales", height=200, key="manual_tickers_text")
 
-        if st.button("Проверить тикеры") and tickers_text.strip():
+        if st.button("Check tickers") and tickers_text.strip():
             try:
                 parsed_assets = portfolio_manager.parse_ticker_weights_text(tickers_text)
 
                 if not parsed_assets:
-                    st.error("Не удалось распознать ни одного тикера. Проверьте формат ввода.")
+                    st.error("No tickers were recognized. Please check your input format.")
                 else:
-                    st.success(f"Распознано {len(parsed_assets)} активов.")
+                    st.success(f"Recognized {len(parsed_assets)} assets.")
 
-                    # Проверяем валидность тикеров
+                    # Checking the validity of tickers
                     tickers = [asset['ticker'] for asset in parsed_assets]
                     valid_tickers, invalid_tickers = data_fetcher.validate_tickers(tickers)
 
                     if invalid_tickers:
-                        st.warning(f"Следующие тикеры не найдены: {', '.join(invalid_tickers)}")
+                        st.warning(f"The following tickers were not found.: {', '.join(invalid_tickers)}")
 
-                    # Показываем таблицу с распознанными активами
+                    # Show a table with recognized assets
                     assets_df = pd.DataFrame({
-                        'Тикер': [asset['ticker'] for asset in parsed_assets],
-                        'Вес': [f"{asset['weight'] * 100:.2f}%" for asset in parsed_assets],
-                        'Статус': ['✅ Найден' if asset['ticker'] in valid_tickers else '❌ Не найден' for asset in
+                        'Ticker': [asset['ticker'] for asset in parsed_assets],
+                        'Weight': [f"{asset['weight'] * 100:.2f}%" for asset in parsed_assets],
+                        'Status': ['✅ Found' if asset['ticker'] in valid_tickers else '❌ Not found' for asset in
                                    parsed_assets]
                     })
 
                     st.dataframe(assets_df, use_container_width=True)
             except Exception as e:
-                st.error(f"Ошибка при разборе тикеров: {e}")
+                st.error(f"Error parsing tickers: {e}")
 
-        # и добавляем проверку существования
-        if st.button("Создать портфель") and portfolio_name and tickers_text.strip():
+        # and add an existence check
+        if st.button("Create a portfolio") and portfolio_name and tickers_text.strip():
             try:
-                # Проверка на существование портфеля с таким именем
+                # Check if a portfolio with this name exists
                 existing_portfolios = portfolio_manager.list_portfolios()
                 existing_names = [p['name'] for p in existing_portfolios]
 
                 if portfolio_name in existing_names:
                     st.warning(
-                        f"Портфель с именем '{portfolio_name}' уже существует. Выберите другое имя или перейдите в раздел 'Управление портфелями' для редактирования.")
+                        f"A portfolio with the name '{portfolio_name}' exists. Please select another name or go to the 'Portfolio Management' section to edit it.")
                 else:
                     portfolio = portfolio_manager.create_portfolio_from_text(
                         tickers_text, portfolio_name, portfolio_description
                     )
 
-                    # Сохраняем портфель
+                    # Save the portfolio
                     saved_path = portfolio_manager.save_portfolio(portfolio)
 
-                    st.success(f"Портфель '{portfolio_name}' успешно создан с {len(portfolio['assets'])} активами!")
+                    st.success(f"Portfolio '{portfolio_name}' successfully created with {len(portfolio['assets'])} assets!")
 
-                    # Показываем итоговую структуру
-                    st.subheader("Структура созданного портфеля")
+                    st.subheader("Structure of the created portfolio")
 
                     weights_data = {
-                        'Тикер': [asset['ticker'] for asset in portfolio['assets']],
-                        'Вес': [asset['weight'] for asset in portfolio['assets']]
+                        'Ticker': [asset['ticker'] for asset in portfolio['assets']],
+                        'Weight': [asset['weight'] for asset in portfolio['assets']]
                     }
 
                     fig = px.pie(
                         values=[asset['weight'] for asset in portfolio['assets']],
                         names=[asset['ticker'] for asset in portfolio['assets']],
-                        title="Распределение активов"
+                        title="Asset Allocation"
                     )
                     st.plotly_chart(fig, use_container_width=True)
             except Exception as e:
-                st.error(f"Ошибка создания портфеля: {e}")
+                st.error(f"Error creating portfolio: {e}")
 
-    elif input_method == "Пошаговое добавление":
-        # Создаем или получаем из состояния список активов
+    elif input_method == "Step by step addition":
+        # Create or get a list of assets from the state
         if 'stepwise_assets' not in st.session_state:
             st.session_state.stepwise_assets = []
 
-        # Форма добавления актива
+        # Asset Add Form
         with st.form("add_asset_form"):
-            st.write("Добавление нового актива")
-            ticker = st.text_input("Тикер", key="stepwise_ticker").strip().upper()
-            weight = st.slider("Вес (%)", 0, 100, 10, key="stepwise_weight") / 100
+            st.write("Adding a new asset")
+            ticker = st.text_input("Ticker", key="stepwise_ticker").strip().upper()
+            weight = st.slider("Weight (%)", 0, 100, 10, key="stepwise_weight") / 100
 
-            submitted = st.form_submit_button("Добавить актив")
+            submitted = st.form_submit_button("Add asset")
 
             if submitted and ticker:
-                # Проверяем валидность тикера
+                # Checking the validity of the ticker
                 valid_tickers, _ = data_fetcher.validate_tickers([ticker])
 
                 if not valid_tickers:
-                    st.error(f"Тикер {ticker} не найден. Пожалуйста, проверьте правильность тикера.")
+                    st.error(f"Ticker {ticker} not found. Please check the correctness of the ticker.")
                 else:
-                    # Добавляем актив в список
+                    # Add asset to the list
                     st.session_state.stepwise_assets.append({
                         'ticker': ticker,
                         'weight': weight
                     })
-                    st.success(f"Актив {ticker} успешно добавлен.")
+                    st.success(f"Asset {ticker} successfully added.")
 
-        # Отображаем текущий список активов
+        # Display the current list of assets
         if st.session_state.stepwise_assets:
-            st.write("### Текущие активы")
+            st.write("Current assets")
 
             assets_df = pd.DataFrame({
-                'Тикер': [asset['ticker'] for asset in st.session_state.stepwise_assets],
-                'Вес': [f"{asset['weight'] * 100:.2f}%" for asset in st.session_state.stepwise_assets]
+                'Ticker': [asset['ticker'] for asset in st.session_state.stepwise_assets],
+                'Weight': [f"{asset['weight'] * 100:.2f}%" for asset in st.session_state.stepwise_assets]
             })
 
             st.dataframe(assets_df, use_container_width=True)
 
-            # Визуализация текущего распределения
+            # Visualization of the current distribution
             total_weight = sum(asset['weight'] for asset in st.session_state.stepwise_assets)
 
             if total_weight > 0:
-                # Нормализуем веса для отображения
+                # Normalize weights for display
                 normalized_weights = [asset['weight'] / total_weight for asset in st.session_state.stepwise_assets]
 
                 fig = px.pie(
                     values=normalized_weights,
                     names=[asset['ticker'] for asset in st.session_state.stepwise_assets],
-                    title="Распределение активов"
+                    title="Asset Allocation"
                 )
                 st.plotly_chart(fig, use_container_width=True)
 
-            # Кнопки для управления списком
+            # Buttons for managing the list
             col1, col2 = st.columns(2)
 
             with col1:
-                if st.button("Очистить список"):
+                if st.button("Clear list"):
                     st.session_state.stepwise_assets = []
-                    st.success("Список активов очищен.")
+                    st.success("The list of assets has been cleared..")
 
             with col2:
-                if st.button("Нормализовать веса"):
-                    # Нормализуем веса
+                if st.button("Normalize weights"):
                     total_weight = sum(asset['weight'] for asset in st.session_state.stepwise_assets)
 
                     if total_weight > 0:
                         for asset in st.session_state.stepwise_assets:
                             asset['weight'] = asset['weight'] / total_weight
 
-                        st.success("Веса нормализованы.")
+                        st.success("Weights are normalized.")
 
-            # Создание портфеля из пошагово добавленных активов
-            if st.button("Создать портфель") and portfolio_name and st.session_state.stepwise_assets:
+            # Creating a portfolio from step-by-step added assets
+            if st.button("Create a portfolio") and portfolio_name and st.session_state.stepwise_assets:
                 try:
-                    # Создаем текстовое представление для функции создания портфеля
+                    # Create a text view for the portfolio creation function
                     tickers_text = "\n".join(
                         [f"{asset['ticker']}:{asset['weight']}" for asset in st.session_state.stepwise_assets])
 
@@ -238,111 +227,109 @@ def create_portfolio_manually(data_fetcher, portfolio_manager):
                         tickers_text, portfolio_name, portfolio_description
                     )
 
-                    st.success(f"Портфель '{portfolio_name}' успешно создан с {len(portfolio['assets'])} активами!")
+                    st.success(f"Portfolio '{portfolio_name}' successfully created with {len(portfolio['assets'])} assets!")
 
-                    # Очищаем список для создания нового портфеля
                     st.session_state.stepwise_assets = []
                 except Exception as e:
-                    st.error(f"Ошибка создания портфеля: {e}")
+                    st.error(f"Error creating portfolio: {e}")
 
-    elif input_method == "Поиск активов":
-        # Поисковая форма
-        search_query = st.text_input("Поиск активов (введите название компании или тикер)", key="search_query")
+    elif input_method == "Search for assets":
+
+        search_query = st.text_input("Search for assets (enter company name or ticker)", key="search_query")
 
         if search_query:
-            with st.spinner('Поиск активов...'):
-                # Ищем активы
+            with st.spinner('Search for assets...'):
                 search_results = data_fetcher.search_tickers(search_query, limit=10)
 
                 if not search_results:
-                    st.info(f"По запросу '{search_query}' ничего не найдено.")
+                    st.info(f"Nothing found for '{search_query}'.")
                 else:
-                    st.success(f"Найдено {len(search_results)} активов.")
+                    st.success(f"Found {len(search_results)} assets.")
 
-                    # Отображаем результаты поиска
+                    # Display search results
                     results_df = pd.DataFrame(search_results)
 
-                    # Форматируем таблицу
+                    # Format the table
                     if 'symbol' in results_df.columns and 'name' in results_df.columns:
                         results_df = results_df[['symbol', 'name', 'type', 'region', 'currency']]
-                        results_df.columns = ['Тикер', 'Название', 'Тип', 'Регион', 'Валюта']
+                        results_df.columns = ['Ticker', 'Name', 'Type', 'Region', 'Currency']
 
                     st.dataframe(results_df, use_container_width=True)
 
-                    # Добавление выбранного актива
-                    selected_ticker = st.selectbox("Выберите актив для добавления",
+                    # Adding the selected asset
+                    selected_ticker = st.selectbox("Select an asset to add",
                                                    [f"{result['symbol']} - {result['name']}" for result in
                                                     search_results])
 
-                    # Извлекаем тикер из выбранной строки
+                    # Extract the ticker from the selected row
                     if selected_ticker:
                         ticker = selected_ticker.split(" - ")[0]
 
-                        # Вес для выбранного актива
-                        weight = st.slider("Вес (%)", 0, 100, 10, key="search_weight") / 100
+                        # Weight for the selected asset
+                        weight = st.slider("Weight (%)", 0, 100, 10, key="search_weight") / 100
 
-                        if st.button("Добавить в портфель"):
-                            # Создаем или получаем из состояния список активов
+                        if st.button("Add to portfolio"):
+                            # Create or get a list of assets from the state
                             if 'search_assets' not in st.session_state:
                                 st.session_state.search_assets = []
 
-                            # Добавляем актив в список
+                            # Add asset to the list
                             st.session_state.search_assets.append({
                                 'ticker': ticker,
                                 'weight': weight
                             })
 
-                            st.success(f"Актив {ticker} успешно добавлен в портфель.")
+                            st.success(f"Asset {ticker} has been successfully added to the portfolio.")
 
-        # Отображаем текущий список активов из поиска
+        # Display the current list of assets from the search
         if 'search_assets' in st.session_state and st.session_state.search_assets:
-            st.write("### Текущие активы")
+            st.write("### Current assets")
 
             assets_df = pd.DataFrame({
-                'Тикер': [asset['ticker'] for asset in st.session_state.search_assets],
-                'Вес': [f"{asset['weight'] * 100:.2f}%" for asset in st.session_state.search_assets]
+                'Ticker': [asset['ticker'] for asset in st.session_state.search_assets],
+                'Weight': [f"{asset['weight'] * 100:.2f}%" for asset in st.session_state.search_assets]
             })
 
             st.dataframe(assets_df, use_container_width=True)
 
-            # Визуализация текущего распределения
+            # Visualization of the current distribution
             total_weight = sum(asset['weight'] for asset in st.session_state.search_assets)
 
             if total_weight > 0:
-                # Нормализуем веса для отображения
+                # Normalize weights for display
                 normalized_weights = [asset['weight'] / total_weight for asset in st.session_state.search_assets]
 
                 fig = px.pie(
                     values=normalized_weights,
                     names=[asset['ticker'] for asset in st.session_state.search_assets],
-                    title="Распределение активов"
+                    title="Asset Allocation"
                 )
                 st.plotly_chart(fig, use_container_width=True)
 
-            # Кнопки для управления списком
+            # Buttons for managing the list
             col1, col2 = st.columns(2)
 
             with col1:
-                if st.button("Очистить список", key="clear_search_list"):
+                if st.button("Clear list", key="clear_search_list"):
                     st.session_state.search_assets = []
-                    st.success("Список активов очищен.")
+                    st.success("The list of assets has been cleared..")
 
             with col2:
-                if st.button("Нормализовать веса", key="normalize_search_weights"):
-                    # Нормализуем веса
+                if st.button("Normalize weights", key="normalize_search_weights"):
+
                     total_weight = sum(asset['weight'] for asset in st.session_state.search_assets)
 
                     if total_weight > 0:
                         for asset in st.session_state.search_assets:
                             asset['weight'] = asset['weight'] / total_weight
 
-                        st.success("Веса нормализованы.")
+                        st.success("Weights are normalized.")
 
-            # Создание портфеля из найденных активов
-            if st.button("Создать портфель",
+            # Creating a portfolio from found assets
+            if st.button("Create a portfolio",
                          key="create_search_portfolio") and portfolio_name and st.session_state.search_assets:
                 try:
-                    # Создаем текстовое представление для функции создания портфеля
+                    # Create a text view for the portfolio creation function
                     tickers_text = "\n".join(
                         [f"{asset['ticker']}:{asset['weight']}" for asset in st.session_state.search_assets])
 
@@ -350,115 +337,109 @@ def create_portfolio_manually(data_fetcher, portfolio_manager):
                         tickers_text, portfolio_name, portfolio_description
                     )
 
-                    st.success(f"Портфель '{portfolio_name}' успешно создан с {len(portfolio['assets'])} активами!")
+                    st.success(f"Portfolio '{portfolio_name}' successfully created with {len(portfolio['assets'])} assets!")
 
-                    # Очищаем список для создания нового портфеля
+                    # Clear the list to create a new portfolio
                     st.session_state.search_assets = []
                 except Exception as e:
-                    st.error(f"Ошибка создания портфеля: {e}")
+                    st.error(f"Error creating portfolio: {e}")
 
 
 def import_portfolio_from_csv(data_fetcher, portfolio_manager):
     """
-    Функция для импорта портфеля из CSV-файла
+   Function for importing portfolio from CSV file
 
     Args:
-        data_fetcher: Экземпляр DataFetcher для загрузки данных
-        portfolio_manager: Экземпляр PortfolioDataManager для работы с портфелями
+        data_fetcher: DataFetcher instance to load data
+        portfolio manager: Portfolio DataManager instance for working with portfolios
     """
-    st.header("Импорт портфеля из CSV")
+    st.header("Import portfolio from CSV")
 
-    # Базовая информация о портфеле
-    portfolio_name = st.text_input("Название портфеля", key="csv_portfolio_name")
+    # Basic information about the portfolio
+    portfolio_name = st.text_input("Portfolio name", key="csv_portfolio_name")
 
-    # Инструкция по формату CSV
-    with st.expander("Формат CSV-файла"):
+    # CSV format instructions
+    with st.expander("CSV file format"):
         st.write("""
-        CSV-файл должен содержать как минимум столбец 'ticker' с тикерами активов.
+        The CSV file must contain at least a 'ticker' column with asset tickers..
 
-        Дополнительные столбцы, которые могут быть включены:
-        - 'weight': вес актива в портфеле (если не указан, будут использованы равные веса)
-        - 'quantity': количество единиц актива
-        - 'purchase_price': цена покупки
-        - 'purchase_date': дата покупки в формате YYYY-MM-DD
-        - 'sector': сектор
-        - 'asset_class': класс актива
-        - 'region': регион
-        - 'currency': валюта
-
-        Пример:
-        ```
-        ticker,weight,quantity,purchase_price
-        AAPL,0.4,10,150.5
-        MSFT,0.3,5,250.75
-        GOOGL,0.3,2,2500.0
+        Additional columns that can be included:
+            - 'weight': asset weight in the portfolio (if not specified, equal weights will be used)
+            - 'quantity': number of units of the asset
+            - 'purchase_price': purchase price
+            - 'purchase_date': purchase date in YYYY-MM-DD format
+            - 'sector': sector
+            - 'asset_class': asset class
+            - 'region': region
+            - 'currency': currency
+            
+            Example:
+            ```
+            ticker,weight,quantity,purchase_price
+            AAPL,0.4,10,150.5
+            MSFT,0.3,5,250.75
+            GOOGL,0.3,2,2500.0
         ```
         """)
 
-    # Загрузка CSV-файла
-    uploaded_file = st.file_uploader("Выберите CSV-файл", type="csv")
+    # Upload CSV file
+    uploaded_file = st.file_uploader("Select CSV file", type="csv")
 
     if uploaded_file is not None:
         try:
-            # Предварительный просмотр CSV
+            # CSV Preview
             df = pd.read_csv(uploaded_file)
 
-            st.write("### Предварительный просмотр данных")
+            st.write("### Data Preview")
             st.dataframe(df.head(10), use_container_width=True)
 
-            # Проверка наличия обязательного столбца
+            # Checking if a required column exists
             if 'ticker' not in df.columns:
-                st.error("CSV-файл должен содержать столбец 'ticker' с тикерами активов.")
+                st.error("The CSV file must contain a 'ticker' column with asset tickers.")
             else:
-                # Импорт портфеля
-                if st.button("Импортировать портфель") and portfolio_name:
-                    with st.spinner('Импорт портфеля...'):
-                        # Сохраняем файл временно
+                if st.button("Import portfolio") and portfolio_name:
+                    with st.spinner('Import portfolio...'):
                         temp_file = "./data/temp_upload.csv"
                         with open(temp_file, "wb") as f:
                             f.write(uploaded_file.getbuffer())
 
-                        # Импортируем портфель
                         portfolio = portfolio_manager.import_from_csv(temp_file, portfolio_name)
 
-                        # Сохраняем портфель
                         portfolio_manager.save_portfolio(portfolio)
 
                         st.success(
-                            f"Портфель '{portfolio_name}' успешно импортирован с {len(portfolio['assets'])} активами!")
+                            f"Portfolio '{portfolio_name}' successfully imported with {len(portfolio['assets'])} assets!")
 
-                        # Визуализация импортированного портфеля
-                        st.subheader("Структура импортированного портфеля")
+                        st.subheader("Structure of the imported portfolio")
 
-                        # Визуализация весов
                         fig = px.pie(
                             values=[asset['weight'] for asset in portfolio['assets']],
                             names=[asset['ticker'] for asset in portfolio['assets']],
-                            title="Распределение активов"
+                            title="Asset Allocation"
                         )
                         st.plotly_chart(fig, use_container_width=True)
         except Exception as e:
-            st.error(f"Ошибка при обработке CSV-файла: {e}")
+            st.error(f"Error processing CSV file: {e}")
 
 
 def create_portfolio_from_template(data_fetcher, portfolio_manager):
     """
-    Функция для создания портфеля на основе шаблонов
+    Function for creating a portfolio based on templates
 
     Args:
-        data_fetcher: Экземпляр DataFetcher для загрузки данных
-        portfolio_manager: Экземпляр PortfolioDataManager для работы с портфелями
+        data_fetcher: DataFetcher instance for loading data
+        portfolio_manager: PortfolioDataManager instance for working with portfolios
     """
-    st.header("Создание портфеля из шаблона")
+    st.header("Creating a portfolio from a template")
 
-    # Базовая информация о портфеле
-    portfolio_name = st.text_input("Название портфеля", key="template_portfolio_name")
-    portfolio_description = st.text_area("Описание (опционально)", key="template_description")
+    # Basic information about the portfolio
+    portfolio_name = st.text_input("Portfolio name", key="template_portfolio_name")
+    portfolio_description = st.text_area("Description (optional)", key="template_description")
 
-    # Список шаблонов
+    # List of templates
     templates = {
         "S&P 500 Top 10": {
-            "description": "10 крупнейших компаний индекса S&P 500",
+            "description": "The 10 Largest Companies in the S&P 500 Index",
             "assets": [
                 {"ticker": "AAPL", "weight": 0.20, "name": "Apple Inc.", "sector": "Technology"},
                 {"ticker": "MSFT", "weight": 0.18, "name": "Microsoft Corporation", "sector": "Technology"},
@@ -473,8 +454,8 @@ def create_portfolio_from_template(data_fetcher, portfolio_manager):
                 {"ticker": "UNH", "weight": 0.05, "name": "UnitedHealth Group Incorporated", "sector": "Healthcare"}
             ]
         },
-        "Классический 60/40": {
-            "description": "Классическое распределение: 60% акции, 40% облигации",
+        "Classic 60/40": {
+            "description": "Classic allocation: 60% stocks, 40% bonds",
             "assets": [
                 {"ticker": "VOO", "weight": 0.40, "name": "Vanguard S&P 500 ETF", "sector": "Equities",
                  "asset_class": "ETF"},
@@ -486,8 +467,8 @@ def create_portfolio_from_template(data_fetcher, portfolio_manager):
                  "sector": "Fixed Income", "asset_class": "ETF"}
             ]
         },
-        "Портфель постоянных весов": {
-            "description": "Равномерное распределение между классами активов",
+        "Portfolio of constant weights": {
+            "description": "Even distribution between asset classes",
             "assets": [
                 {"ticker": "VTI", "weight": 0.25, "name": "Vanguard Total Stock Market ETF", "sector": "Equities",
                  "asset_class": "ETF"},
@@ -499,8 +480,8 @@ def create_portfolio_from_template(data_fetcher, portfolio_manager):
                  "sector": "Fixed Income", "asset_class": "ETF"}
             ]
         },
-        "Дивидендный портфель": {
-            "description": "Портфель, ориентированный на стабильные дивиденды",
+        "Dividend portfolio": {
+            "description": "A portfolio focused on stable dividends",
             "assets": [
                 {"ticker": "VYM", "weight": 0.20, "name": "Vanguard High Dividend Yield ETF", "sector": "Equities",
                  "asset_class": "ETF"},
@@ -514,8 +495,8 @@ def create_portfolio_from_template(data_fetcher, portfolio_manager):
                 {"ticker": "MMM", "weight": 0.10, "name": "3M Co", "sector": "Industrials"}
             ]
         },
-        "Технологический портфель": {
-            "description": "Портфель, ориентированный на технологический сектор",
+        "Technology portfolio": {
+            "description": "Portfolio focused on the technology sector",
             "assets": [
                 {"ticker": "AAPL", "weight": 0.15, "name": "Apple Inc.", "sector": "Technology"},
                 {"ticker": "MSFT", "weight": 0.15, "name": "Microsoft Corporation", "sector": "Technology"},
@@ -532,9 +513,9 @@ def create_portfolio_from_template(data_fetcher, portfolio_manager):
         }
     }
 
-    # Выбор шаблона
+    # Select template
     selected_template = st.selectbox(
-        "Выберите шаблон портфеля",
+        "Select a portfolio template",
         list(templates.keys()),
         format_func=lambda x: f"{x} - {templates[x]['description']}",
         key="template_selection"
@@ -543,40 +524,40 @@ def create_portfolio_from_template(data_fetcher, portfolio_manager):
     if selected_template:
         template = templates[selected_template]
 
-        st.subheader(f"Шаблон: {selected_template}")
+        st.subheader(f"Sample: {selected_template}")
         st.write(template["description"])
 
-        # Отображаем состав шаблона
+        # Display the composition of the template
         template_df = pd.DataFrame({
-            'Тикер': [asset['ticker'] for asset in template['assets']],
-            'Название': [asset.get('name', '') for asset in template['assets']],
-            'Вес': [f"{asset['weight'] * 100:.2f}%" for asset in template['assets']],
-            'Сектор': [asset.get('sector', 'N/A') for asset in template['assets']]
+            'Ticker': [asset['ticker'] for asset in template['assets']],
+            'Name': [asset.get('name', '') for asset in template['assets']],
+            'Weight': [f"{asset['weight'] * 100:.2f}%" for asset in template['assets']],
+            'Sector': [asset.get('sector', 'N/A') for asset in template['assets']]
         })
 
         st.dataframe(template_df, use_container_width=True)
 
-        # Визуализация шаблона
+        # Template rendering
         fig = px.pie(
             values=[asset['weight'] for asset in template['assets']],
             names=[asset['ticker'] for asset in template['assets']],
-            title="Распределение активов в шаблоне"
+            title="Asset Allocation in Template"
         )
         st.plotly_chart(fig, use_container_width=True)
 
-        # Создание портфеля из шаблона
-        if st.button("Создать портфель из шаблона") and portfolio_name:
-            with st.spinner('Создание портфеля...'):
+
+        if st.button("Create a portfolio from a template") and portfolio_name:
+            with st.spinner('Portfolio creation...'):
                 try:
-                    # Проверяем валидность тикеров
+                    # Checking the validity of tickers
                     tickers = [asset['ticker'] for asset in template['assets']]
                     valid_tickers, invalid_tickers = data_fetcher.validate_tickers(tickers)
 
                     if invalid_tickers:
                         st.warning(
-                            f"Следующие тикеры не найдены: {', '.join(invalid_tickers)}. Они будут исключены из портфеля.")
+                            f"The following tickers were not found: {', '.join(invalid_tickers)}. They will be excluded from the portfolio.")
 
-                    # Создаем структуру портфеля
+                    # Create a portfolio structure
                     assets = []
                     for asset in template['assets']:
                         if asset['ticker'] in valid_tickers:
@@ -590,108 +571,106 @@ def create_portfolio_from_template(data_fetcher, portfolio_manager):
                         'assets': assets
                     }
 
-                    # Нормализуем веса, если были исключены невалидные тикеры
+                    # Normalize weights if invalid tickers were excluded
                     if invalid_tickers:
                         total_weight = sum(asset['weight'] for asset in portfolio_data['assets'])
                         for asset in portfolio_data['assets']:
                             asset['weight'] = asset['weight'] / total_weight
 
-                    # Обогащаем данные портфеля дополнительной информацией
+                    # Enriching portfolio data with additional information
                     portfolio_manager._enrich_portfolio_data(portfolio_data)
 
-                    # Сохраняем портфель
+                    # Save the portfolio
                     portfolio_manager.save_portfolio(portfolio_data)
 
                     st.success(
-                        f"Портфель '{portfolio_name}' успешно создан с {len(portfolio_data['assets'])} активами!")
+                        f"Portfolio '{portfolio_name}' successfully created with {len(portfolio_data['assets'])} assets!")
                 except Exception as e:
-                    st.error(f"Ошибка при создании портфеля: {e}")
+                    st.error(f"Error creating portfolio: {e}")
 
 
 def manage_portfolios(data_fetcher, portfolio_manager):
     """
-    Функция для управления существующими портфелями
+    Function for managing existing portfolios
 
     Args:
-        data_fetcher: Экземпляр DataFetcher для загрузки данных
-        portfolio_manager: Экземпляр PortfolioDataManager для работы с портфелями
+        data_fetcher: DataFetcher instance for loading data
+        portfolio_manager: PortfolioDataManager instance for working with portfolios
     """
-    st.header("Управление портфелями")
+    st.header("Portfolio management")
 
-    # Получаем список портфелей
+    # Get a list of portfolios
     portfolios = portfolio_manager.list_portfolios()
 
     if not portfolios:
-        st.info("Портфели не найдены. Создайте портфель в одном из разделов.")
+        st.info("No portfolios found. Please create a portfolio in one of the sections.")
         return
 
-    # Отображаем список портфелей
-    st.subheader("Список портфелей")
+    # Display a list of portfolios
+    st.subheader("List of portfolios")
 
     portfolios_df = pd.DataFrame({
-        'Название': [p['name'] for p in portfolios],
-        'Активов': [p['asset_count'] for p in portfolios],
-        'Последнее обновление': [p['last_updated'] for p in portfolios]
+        'Name': [p['name'] for p in portfolios],
+        'Assets': [p['asset_count'] for p in portfolios],
+        'Last update': [p['last_updated'] for p in portfolios]
     })
 
     st.dataframe(portfolios_df, use_container_width=True)
 
-    # Выбор портфеля для действий
     selected_portfolio = st.selectbox(
-        "Выберите портфель для действий",
+        "Select a portfolio for action",
         [p['name'] for p in portfolios],
         key="manage_portfolio_selection"
     )
 
     if selected_portfolio:
-        # Доступные действия
         action = st.radio(
-            "Выберите действие",
-            ["Просмотр", "Экспорт в CSV", "Дублирование", "Удаление"],
+            "Select an action",
+            ["View", "Export to CSV", "Duplication", "Delete"],
             key="portfolio_action"
         )
 
-        if action == "Просмотр":
-            # Загружаем данные портфеля
+        if action == "View":
+            # Loading portfolio data
             portfolio_data = portfolio_manager.load_portfolio(selected_portfolio)
 
-            st.subheader(f"Портфель: {portfolio_data['name']}")
+            st.subheader(f"Portfolio: {portfolio_data['name']}")
 
             if 'description' in portfolio_data and portfolio_data['description']:
                 st.write(portfolio_data['description'])
 
-            # Отображаем список активов
+            # Display the list of assets
             assets_data = []
             for asset in portfolio_data['assets']:
                 asset_row = {
-                    'Тикер': asset['ticker'],
-                    'Вес (%)': f"{asset['weight'] * 100:.2f}%"
+                    'Ticker': asset['ticker'],
+                    'Weight (%)': f"{asset['weight'] * 100:.2f}%"
                 }
 
-                # Добавляем доступную информацию
+                # Adding accessible information
                 for field in ['name', 'sector', 'industry', 'asset_class', 'currency']:
                     if field in asset:
                         asset_row[field.capitalize()] = asset[field]
 
                 if 'current_price' in asset:
-                    asset_row['Текущая цена'] = asset['current_price']
+                    asset_row['Current price'] = asset['current_price']
 
                 if 'price_change_pct' in asset:
-                    asset_row['Изменение (%)'] = f"{asset['price_change_pct']:.2f}%"
+                    asset_row['Price change (%)'] = f"{asset['price_change_pct']:.2f}%"
 
                 assets_data.append(asset_row)
 
             st.dataframe(pd.DataFrame(assets_data), use_container_width=True)
 
-            # Визуализация распределения активов
+            # Visualization of asset allocation
             fig = px.pie(
                 values=[asset['weight'] for asset in portfolio_data['assets']],
                 names=[asset['ticker'] for asset in portfolio_data['assets']],
-                title="Распределение активов"
+                title="Asset Allocation"
             )
             st.plotly_chart(fig, use_container_width=True)
 
-            # Если есть секторное распределение, отображаем его
+            # If there is a sector distribution, display it
             sectors = {}
             for asset in portfolio_data['assets']:
                 if 'sector' in asset and asset['sector'] != 'N/A':
@@ -705,71 +684,65 @@ def manage_portfolios(data_fetcher, portfolio_manager):
                 fig_sectors = px.pie(
                     values=list(sectors.values()),
                     names=list(sectors.keys()),
-                    title="Распределение по секторам"
+                    title="Distribution by sectors"
                 )
                 st.plotly_chart(fig_sectors, use_container_width=True)
 
-        elif action == "Экспорт в CSV":
-            # Загружаем данные портфеля
+        elif action == "Export to CSV":
+            # Loading portfolio data
             portfolio_data = portfolio_manager.load_portfolio(selected_portfolio)
 
-            # Экспортируем в CSV
             try:
                 csv_path = portfolio_manager.export_to_csv(portfolio_data)
 
-                st.success(f"Портфель '{selected_portfolio}' успешно экспортирован в CSV: {csv_path}")
+                st.success(f"Portfolio '{selected_portfolio}' successfully exported to CSV: {csv_path}")
 
-                # Создаем кнопку для скачивания
+                # Create a download button
                 with open(csv_path, 'r') as f:
                     csv_content = f.read()
 
                 st.download_button(
-                    label="Скачать CSV-файл",
+                    label="Download CSV file",
                     data=csv_content,
                     file_name=f"{selected_portfolio}.csv",
                     mime="text/csv"
                 )
             except Exception as e:
-                st.error(f"Ошибка при экспорте портфеля: {e}")
+                st.error(f"Error exporting portfolio: {e}")
 
-        elif action == "Дублирование":
-            # Новое имя для дубликата
-            new_name = st.text_input("Введите имя для нового портфеля",
-                                     value=f"{selected_portfolio} (копия)",
+        elif action == "Duplication":
+            new_name = st.text_input("Enter a name for the new portfolio",
+                                     value=f"{selected_portfolio} (copy)",
                                      key="duplicate_name")
 
-            if st.button("Дублировать портфель") and new_name:
+            if st.button("Duplicate portfolio") and new_name:
                 try:
-                    # Загружаем данные оригинального портфеля
+                    # Loading original portfolio data
                     portfolio_data = portfolio_manager.load_portfolio(selected_portfolio)
 
-                    # Создаем копию с новым именем
+                    # Create a copy with a new name
                     portfolio_data['name'] = new_name
                     portfolio_data['created'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                     portfolio_data['last_updated'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
-                    # Сохраняем новый портфель
                     portfolio_manager.save_portfolio(portfolio_data)
 
-                    st.success(f"Портфель '{selected_portfolio}' успешно дублирован как '{new_name}'!")
+                    st.success(f"Portfolio '{selected_portfolio}' successfully duplicated as '{new_name}'!")
                 except Exception as e:
-                    st.error(f"Ошибка при дублировании портфеля: {e}")
+                    st.error(f"Error duplicating portfolio: {e}")
 
-        elif action == "Удаление":
-            st.warning(f"Вы собираетесь удалить портфель '{selected_portfolio}'. Это действие нельзя отменить.")
+        elif action == "Delete":
+            st.warning(f"You are about to delete portfolio '{selected_portfolio}'. This action cannot be undone.")
 
-            # Подтверждение удаления
-            if st.button("Подтвердить удаление"):
+            if st.button("Confirm deletion"):
                 try:
-                    # Получаем имя файла портфеля
                     portfolio_file = next((p['filename'] for p in portfolios if p['name'] == selected_portfolio), None)
 
                     if portfolio_file:
-                        # Удаляем портфель
                         portfolio_manager.delete_portfolio(portfolio_file)
 
-                        st.success(f"Портфель '{selected_portfolio}' успешно удален!")
+                        st.success(f"Portfolio '{selected_portfolio}' has been successfully deleted!")
                     else:
-                        st.error("Не удалось найти файл портфеля.")
+                        st.error("Unable to find portfolio file.")
                 except Exception as e:
-                    st.error(f"Ошибка при удалении портфеля: {e}")
+                    st.error(f"Error deleting portfolio: {e}")

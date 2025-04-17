@@ -1,3 +1,1 @@
-from . import portfolio_analysis
-from . import portfolio_creation
-from . import portfolio_optimization
+from src.pages import portfolio_creation, portfolio_analysis, portfolio_optimization
