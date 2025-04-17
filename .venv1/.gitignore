@@ -8,8 +8,8 @@ __pycache__/
 *.egg
 
 # Data / Cache
-cache/
-data/
+**/cache/
+**/data
 *.log
 *.tmp
 
