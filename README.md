@@ -2,9 +2,13 @@
 
 An advanced interactive web application for creating, managing, analyzing, and optimizing investment portfolios with comprehensive analytics and risk management capabilities.
 
-![Portfolio Management System](https://img.shields.io/badge/Portfolio-Management-blue)
-![Python](https://img.shields.io/badge/Python-3.8%2B-brightgreen)
-![Streamlit](https://img.shields.io/badge/Streamlit-1.28.0%2B-red)
+![Image](https://github.com/user-attachments/assets/fc86fd6c-eebb-42d9-94b9-7c6516af7d1d)
+
+![Image](https://github.com/user-attachments/assets/f4d778ef-dde2-4d8f-bf79-1c64833763e7)
+
+![Image](https://github.com/user-attachments/assets/14292e28-834f-4c24-acae-04701e87f3ae)
+
+![Image](https://github.com/user-attachments/assets/82a062cd-b095-4ab6-8b1e-a29a146ab0b2)
 
 ## Overview
 
