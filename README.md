@@ -2,6 +2,12 @@
 
 An advanced interactive web application for creating, managing, analyzing, and optimizing investment portfolios with comprehensive analytics and risk management capabilities.
 
+## Overview
+
+This system provides a comprehensive solution for portfolio management, allowing investors to create, analyze, and optimize their investment portfolios using advanced financial models and analytical tools. The application combines modern portfolio theory with real-time data, interactive visualizations, and machine learning approaches to deliver actionable insights.
+
+## Images
+
 ![Image](https://github.com/user-attachments/assets/fc86fd6c-eebb-42d9-94b9-7c6516af7d1d)
 
 ![Image](https://github.com/user-attachments/assets/f4d778ef-dde2-4d8f-bf79-1c64833763e7)
@@ -9,10 +15,6 @@ An advanced interactive web application for creating, managing, analyzing, and o
 ![Image](https://github.com/user-attachments/assets/14292e28-834f-4c24-acae-04701e87f3ae)
 
 ![Image](https://github.com/user-attachments/assets/82a062cd-b095-4ab6-8b1e-a29a146ab0b2)
-
-## Overview
-
-This system provides a comprehensive solution for portfolio management, allowing investors to create, analyze, and optimize their investment portfolios using advanced financial models and analytical tools. The application combines modern portfolio theory with real-time data, interactive visualizations, and machine learning approaches to deliver actionable insights.
 
 ## Key Features
 
