@@ -8,13 +8,13 @@ This system provides a comprehensive solution for portfolio management, allowing
 
 ## Images
 
-![Image](https://github.com/user-attachments/assets/fc86fd6c-eebb-42d9-94b9-7c6516af7d1d)
-
 ![Image](https://github.com/user-attachments/assets/f4d778ef-dde2-4d8f-bf79-1c64833763e7)
 
 ![Image](https://github.com/user-attachments/assets/14292e28-834f-4c24-acae-04701e87f3ae)
 
 ![Image](https://github.com/user-attachments/assets/82a062cd-b095-4ab6-8b1e-a29a146ab0b2)
+
+![Image](https://github.com/user-attachments/assets/fc86fd6c-eebb-42d9-94b9-7c6516af7d1d)
 
 ## Key Features
 
