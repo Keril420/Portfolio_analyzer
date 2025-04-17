@@ -7,9 +7,14 @@ __pycache__/
 *.egg-info/
 *.egg
 
+# Data / Cache в src/
+src/cache/
+src/data/
+
 # Data / Cache
-**/cache/
-**/data
+/cache/
+/data
+
 *.log
 *.tmp
 
