@@ -75,11 +75,11 @@ def main():
     # Additional information in the sidebar
     with st.sidebar.expander("About the program"):
         st.write("""
-        The investment portfolio management system allows you to create, 
+        The investment portfolio management system allows you to create,
         analyze and optimize investment portfolios
         using various strategies and models.
-        
-        
+
+
         Author: Wild Market Capital (@imnotkeril)
         Version: 1.0.0
         """)
@@ -197,7 +197,7 @@ def show_home_page(data_fetcher, portfolio_manager):
 
     # Welcome text
     st.write("""
-    Welcome to our advanced portfolio management system! This application helps investors create, analyze, optimize, 
+    Welcome to our advanced portfolio management system! This application helps investors create, analyze, optimize,
     and monitor investment portfolios using sophisticated financial models and interactive visualizations.
     """)
 
@@ -258,18 +258,18 @@ def show_home_page(data_fetcher, portfolio_manager):
             with col1:
                 if st.button("Create New Portfolio"):
                     st.session_state.current_page = "Portfolio creation"
-                    st.experimental_rerun()
+                    st.rerun()
 
             with col2:
                 if st.button("Analyze Existing Portfolio"):
                     st.session_state.current_page = "Portfolio analysis"
-                    st.experimental_rerun()
+                    st.rerun()
         else:
             st.info("You don't have any portfolios yet. Start by creating your first portfolio.")
 
             if st.button("Create First Portfolio"):
                 st.session_state.current_page = "Portfolio creation"
-                st.experimental_rerun()
+                st.rerun()
 
         st.markdown("---")  # Separator
         add_api_key_section(data_fetcher)
@@ -317,7 +317,7 @@ def show_home_page(data_fetcher, portfolio_manager):
     - **Financial advisors**: Demonstrate portfolio characteristics and potential improvements to clients
     - **Students and researchers**: Explore financial theories with real market data
 
-    This system combines modern portfolio theory, quantitative risk management, and interactive data visualization 
+    This system combines modern portfolio theory, quantitative risk management, and interactive data visualization
     to provide powerful insights for investment decision-making.
     """)
 
