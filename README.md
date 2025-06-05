@@ -1,4 +1,4 @@
-# Investment Portfolio Management System
+# Portfolio Analysis System
 
 An advanced interactive web application for creating, managing, analyzing, and optimizing investment portfolios with comprehensive analytics and risk management capabilities.
 
