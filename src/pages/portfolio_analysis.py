@@ -261,7 +261,7 @@ def run(data_fetcher, portfolio_manager):
         # Create multiple metrics lines
         col1, col2, col3, col4 = st.columns(4)
         with col1:
-            metric_name = "Annual Return"
+            metric_name = "Total Return"
             value = portfolio_metrics.get('total_return', 0) * 100
             benchmark_value = portfolio_metrics.get('benchmark_return',
                                                     0) * 100 if 'benchmark_return' in portfolio_metrics else None
